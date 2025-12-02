@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "webhdfsmagic"
+version = "0.0.1"
+description = "IPython magic commands to interact with HDFS via WebHDFS/Knox"
+readme = "README.md"
+requires-python = ">=3.6"
+license = { text = "MIT License" }
+authors = [
+    { name = "ab2dridi ", email = "a-d13@hotmail.fr" }
+]
+dependencies = [
+    "requests>=2.20.0",
+    "pandas>=1.0.0",
+    "traitlets>=4.3.0",
+    "ipython>=7.0.0"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=5.0.0"
+]
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+include = ["webhdfsmagic*"]
+
