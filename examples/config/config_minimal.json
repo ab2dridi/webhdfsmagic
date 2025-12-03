@@ -1,0 +1,7 @@
+{
+  "knox_url": "http://localhost:9870",
+  "password": "",
+  "username": "hdfs",
+  "verify_ssl": false,
+  "webhdfs_api": "/webhdfs/v1"
+}

@@ -1,0 +1,7 @@
+# Ignore actual config files (with credentials)
+*.local.json
+*_local.json
+my_*.json
+
+# Keep example files
+!*.json
