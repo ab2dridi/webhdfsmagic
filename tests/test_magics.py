@@ -1,9 +1,12 @@
 import json
-import pytest
-from webhdfsmagic.magics import WebHDFSMagics
-from IPython.core.interactiveshell import InteractiveShell
-import requests
 from unittest.mock import MagicMock
+
+import pytest
+import requests
+from IPython.core.interactiveshell import InteractiveShell
+
+from webhdfsmagic.magics import WebHDFSMagics
+
 
 @pytest.fixture
 def magics_instance():
@@ -37,7 +40,7 @@ def test_ls(monkeypatch, magics_instance):
                     "modificationTime": 1600000000000,
                     "length": 1024,
                     "blockSize": 134217728,
-                    "replication": 3
+                    "replication": 3,
                 }
             ]
         }
@@ -45,7 +48,9 @@ def test_ls(monkeypatch, magics_instance):
     fake_response.content = json.dumps(fake_data).encode("utf-8")
     fake_response.status_code = 200
     fake_response.json.return_value = fake_data  # <-- Set json() return value
-    monkeypatch.setattr(requests, "request", lambda method, url, params, auth, verify: fake_response)
+    monkeypatch.setattr(
+        requests, "request", lambda method, url, params, auth, verify: fake_response
+    )
     df = magics_instance._format_ls("/fake-dir")
     assert len(df) == 1
 
@@ -63,6 +68,7 @@ def test_cat_default(monkeypatch, magics_instance):
     lines = result.splitlines()
     assert len(lines) == 100
 
+
 def test_cat_full(monkeypatch, magics_instance):
     """
     Test the cat command with '-n -1' to display the full file.
@@ -75,4 +81,3 @@ def test_cat_full(monkeypatch, magics_instance):
     result = magics_instance.hdfs("cat /fake-file -n -1")
     lines = result.splitlines()
     assert len(lines) == 50
-

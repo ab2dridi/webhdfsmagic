@@ -1,4 +1,9 @@
-requests>=2.20.0
-pandas>=1.0.0
-traitlets>=4.3.0
-ipython>=7.0.0
+# This file is auto-generated for CI/CD compatibility.
+# The source of truth is pyproject.toml
+# To regenerate: pip-compile pyproject.toml --extra dev -o requirements.txt
+#
+# Install with:
+#   pip install .           # production dependencies
+#   pip install .[dev]      # with dev dependencies
+
+-e .

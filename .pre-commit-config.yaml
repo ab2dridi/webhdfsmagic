@@ -1,0 +1,74 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # - id: check-added-large-files
+      - id: check-ast
+      - id: check-builtin-literals
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: check-executables-have-shebangs
+      - id: check-illegal-windows-names
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-symlinks
+      - id: check-toml
+      # - id: check-vcs-permalinks
+      # - id: check-xml
+      - id: check-yaml
+      - id: debug-statements
+      - id: destroyed-symlinks
+      - id: detect-aws-credentials
+        args: [--allow-missing-credentials]
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: fix-byte-order-marker
+      # - id: forbid-new-submodules
+      # - id: forbid-submodules
+      - id: mixed-line-ending
+      - id: no-commit-to-branch
+        args: [--branch, main, --branch, master, --branch, staging-stable]
+      # - id: requirements-txt-fixer
+      # - id: sort-simple-yaml
+      - id: trailing-whitespace
+        exclude: '^.*\.patch$'
+        args:
+          - --markdown-linebreak-ext=md
+      - id: pretty-format-json
+        exclude: "^.*ipynb$"
+        args: [--autofix]
+      - id: name-tests-test
+        args: [--pytest-test-first]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.7
+    hooks:
+      - id: ruff
+        types_or: [python, pyi, jupyter]
+        args: [--fix]
+        exclude: '^examples/.*\.ipynb$'
+      - id: ruff-format
+        types_or: [python, pyi, jupyter]
+        exclude: '^examples/.*\.ipynb$'
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: "v1.14.1"
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - types-requests
+          - pandas-stubs
+          - types-setuptools
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: '^(tests/|docs/|README\.md|examples/config/)'
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.21.0
+    hooks:
+      - id: pyupgrade
+        args: ["--py39-plus"]
+
+default_language_version:
+  python: python3.9

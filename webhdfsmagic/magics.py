@@ -1,64 +1,79 @@
-import os
-import json
-import urllib.parse
-import requests
-from datetime import datetime
-from IPython.core.magic import Magics, magics_class, line_magic
-from traitlets import Unicode, Bool
-import pandas as pd
-from typing import Dict, Any, Union
-from IPython.display import HTML  # For HTML display
-import glob
 import fnmatch
+import glob
+import json
+import os
 import traceback
+import urllib.parse
+from datetime import datetime
+from typing import Any, Optional, Union
+
+import pandas as pd
+import requests
+from IPython.core.magic import Magics, line_magic, magics_class
+from IPython.display import HTML  # For HTML display
+from traitlets import TraitType, Unicode
+
+
+class BoolOrString(TraitType):
+    """A trait for values that can be either a boolean or a string (for SSL certificate paths)."""
+
+    info_text = "either a boolean or a string"
+
+    def validate(self, obj, value):
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value
+        self.error(obj, value)
+
 
 @magics_class
 class WebHDFSMagics(Magics):
     """
-    IPython magics pour interagir avec HDFS via WebHDFS/Knox.
+    IPython magics to interact with HDFS via WebHDFS/Knox.
 
-    Ce module fournit les commandes magiques suivantes :
-      - %hdfs ls      : Lister les fichiers sur HDFS.
-      - %hdfs mkdir   : Créer un répertoire sur HDFS.
-      - %hdfs rm      : Supprimer des fichiers/répertoires (wildcards supportés).
-      - %hdfs put     : Envoyer des fichiers locaux vers HDFS en streaming (gros fichiers).
-      - %hdfs get     : Télécharger des fichiers depuis HDFS en streaming (gros fichiers).
-      - %hdfs cat     : Afficher le contenu d'un fichier depuis HDFS (avec option -n).
-      - %hdfs chmod   : Modifier les permissions d'un fichier/répertoire.
-      - %hdfs chown   : Changer le propriétaire et le groupe.
+    This module provides the following magic commands:
+      - %hdfs ls      : List files on HDFS.
+      - %hdfs mkdir   : Create a directory on HDFS.
+      - %hdfs rm      : Delete files/directories (wildcards supported).
+      - %hdfs put     : Upload local files to HDFS using streaming (large files).
+      - %hdfs get     : Download files from HDFS using streaming (large files).
+      - %hdfs cat     : Display file content from HDFS (with -n option).
+      - %hdfs chmod   : Change file/directory permissions.
+      - %hdfs chown   : Change owner and group.
 
     La configuration (URL Knox, API WebHDFS, identifiants, verify_ssl, etc.)
-    est d'abord chargée depuis ~/.webhdfsmagic/config.json, puis, si absent,
-    depuis ~/.sparkmagic/config.json. Pour Sparkmagic, l'URL est transformée
-    pour ne conserver que la partie de base (ex : "https://hostname:port/gateway/default")
-    et y ajouter "/webhdfs/v1". Le paramètre verify_ssl peut être un booléen
-    ou le chemin d'accès à un certificat. Par défaut (pour Sparkmagic), verify_ssl est False.
+    is first loaded from ~/.webhdfsmagic/config.json, then if absent,
+    from ~/.sparkmagic/config.json. For Sparkmagic, the URL is transformed
+    to keep only the base part (ex : "https://hostname:port/gateway/default")
+    and append "/webhdfs/v1". The verify_ssl parameter can be a boolean
+    or a path to a certificate. By default (for Sparkmagic), verify_ssl is False.
     """
 
-    # Valeurs par défaut (modifiables via configuration ou la commande setconfig)
+    # Default values (modifiable via configuration or setconfig command)
     knox_url = Unicode("https://localhost:8443/gateway/default").tag(config=True)
     webhdfs_api = Unicode("/webhdfs/v1").tag(config=True)
     auth_user = Unicode().tag(config=True)
     auth_password = Unicode().tag(config=True)
-    verify_ssl = Bool(False).tag(config=True)
+    verify_ssl = BoolOrString(default_value=False).tag(config=True)
 
     def __init__(self, shell):
         """
-        Initialise l'extension et charge la configuration externe.
-        
-        :param shell: Le shell IPython.
+        Initialize the extension and load external configuration.
+
+        :param shell: The IPython shell.
         """
-        super().__init__(shell)
+        super().__init__(shell=shell)
         self._load_external_config()
 
-    def _load_external_config(self) -> None:
+    def _load_external_config(self):
         """
-        Charge la configuration depuis ~/.webhdfsmagic/config.json s'il existe;
-        sinon, depuis ~/.sparkmagic/config.json.
-        
-        Pour Sparkmagic, on extrait l'URL jusqu'au dernier segment et on y
-        ajoute "/webhdfs/v1". Le paramètre verify_ssl peut être un booléen ou
-        un chemin vers un certificat. Par défaut, pour Sparkmagic, verify_ssl vaut False.
+        Load configuration from ~/.webhdfsmagic/config.json if it exists;
+        otherwise, from ~/.sparkmagic/config.json.
+
+        For Sparkmagic, extract the URL up to the last segment and append
+        '/webhdfs/v1'. The verify_ssl parameter can be a boolean or a path
+        to a certificate. By default, for Sparkmagic, verify_ssl is False.
         """
         config_path_webhdfsmagic = os.path.expanduser("~/.webhdfsmagic/config.json")
         config_path_sparkmagic = os.path.expanduser("~/.sparkmagic/config.json")
@@ -81,7 +96,7 @@ class WebHDFSMagics(Magics):
                 sparkmagic_url = creds.get("url", "")
                 if sparkmagic_url:
                     parsed = urllib.parse.urlsplit(sparkmagic_url)
-                    # Retirer le dernier segment du chemin
+                    # Remove the last segment of the path
                     path_parts = parsed.path.rstrip("/").split("/")
                     if len(path_parts) > 1 and path_parts[-1]:
                         base_path = "/".join(path_parts[:-1])
@@ -98,7 +113,7 @@ class WebHDFSMagics(Magics):
         else:
             print("No configuration file found. Using default settings.")
 
-        # Si la configuration provient du fichier .webhdfsmagic, on met à jour.
+        # If configuration comes from .webhdfsmagic file, update it.
         if config and os.path.exists(config_path_webhdfsmagic):
             self.knox_url = config.get("knox_url", self.knox_url)
             self.webhdfs_api = config.get("webhdfs_api", self.webhdfs_api)
@@ -106,27 +121,37 @@ class WebHDFSMagics(Magics):
             self.auth_password = config.get("password", self.auth_password)
             self.verify_ssl = config.get("verify_ssl", default_verify_ssl)
 
-        # Gestion de verify_ssl :
+        # SSL verification handling:
+        # - If bool (True/False): use as-is
+        # - If string: treat as certificate file path (expand ~ and check existence)
+        # - Otherwise: fall back to False with warning
         if isinstance(self.verify_ssl, bool):
             pass
         elif isinstance(self.verify_ssl, str):
-            if not os.path.exists(self.verify_ssl):
-                print(f"Warning: certificate file '{self.verify_ssl}' does not exist. Falling back to False.")
+            # Expand user home directory (~) in certificate path
+            expanded_path = os.path.expanduser(self.verify_ssl)
+            if os.path.exists(expanded_path):
+                self.verify_ssl = expanded_path
+            else:
+                print(
+                    f"Warning: certificate file '{self.verify_ssl}' "
+                    "does not exist. Falling back to False."
+                )
                 self.verify_ssl = False
         else:
             print("Warning: verify_ssl has an unexpected type. Using default value False.")
             self.verify_ssl = False
 
-    def _execute(self, method: str, operation: str, path: str, **params) -> Dict[str, Any]:
+    def _execute(self, method: str, operation: str, path: str, **params) -> dict[str, Any]:
         """
-        Exécute une requête WebHDFS.
-        
-        :param method: Méthode HTTP (GET, PUT, DELETE, etc.).
-        :param operation: Opération WebHDFS (e.g. LISTSTATUS, MKDIRS, DELETE).
-        :param path: Chemin sur HDFS.
-        :param params: Paramètres supplémentaires pour la requête.
-        :return: Réponse JSON décodée.
-        :raises HTTPError: En cas d'erreur HTTP.
+        Execute a WebHDFS request.
+
+        :param method: HTTP method (GET, PUT, DELETE, etc.).
+        :param operation: WebHDFS operation (e.g. LISTSTATUS, MKDIRS, DELETE).
+        :param path: Path on HDFS.
+        :param params: Additional parameters for the request.
+        :return: Decoded JSON response.
+        :raises HTTPError: In case of HTTP error.
         """
         url = f"{self.knox_url}{self.webhdfs_api}{path}"
         params["op"] = operation
@@ -136,30 +161,28 @@ class WebHDFSMagics(Magics):
             url=url,
             params=params,
             auth=(self.auth_user, self.auth_password),
-            verify=self.verify_ssl
+            verify=self.verify_ssl,
         )
         response.raise_for_status()
         return response.json() if response.content else {}
 
     def _format_perms(self, perm: int) -> str:
         """
-        Convertit une permission numérique en chaîne de type UNIX (e.g., "rwx").
-        
-        :param perm: Permission sous forme d'entier.
-        :return: Chaîne de permissions.
+        Convert a numeric permission to a UNIX-style string (e.g., "rwx").
+
+        :param perm: Permission as an integer.
+        :return: Permission string.
         """
         return "".join(
-            ['r' if perm & 4 else '-', 
-             'w' if perm & 2 else '-', 
-             'x' if perm & 1 else '-']
+            ["r" if perm & 4 else "-", "w" if perm & 2 else "-", "x" if perm & 1 else "-"]
         )
 
     def _format_ls(self, path: str) -> pd.DataFrame:
         """
-        Formate la sortie de la commande LISTSTATUS en DataFrame Pandas.
-        
-        :param path: Chemin HDFS à lister.
-        :return: DataFrame des informations de fichiers.
+        Format the output of the LISTSTATUS command as a Pandas DataFrame.
+
+        :param path: HDFS path to list.
+        :return: DataFrame of file information.
         """
         result = self._execute("GET", "LISTSTATUS", path)
         entries = []
@@ -172,32 +195,33 @@ class WebHDFSMagics(Magics):
                 "owner": f["owner"],
                 "group": f["group"],
                 "permissions": f"{self._format_perms((permission_int >> 6) & 7)}"
-                               f"{self._format_perms((permission_int >> 3) & 7)}"
-                               f"{self._format_perms(permission_int & 7)}",
+                f"{self._format_perms((permission_int >> 3) & 7)}"
+                f"{self._format_perms(permission_int & 7)}",
                 "block_size": f.get("blockSize", 0),
                 "modified": datetime.fromtimestamp(f["modificationTime"] / 1000),
-                "replication": f.get("replication", 1)
+                "replication": f.get("replication", 1),
             }
             entries.append(entry)
         return pd.DataFrame(entries)
 
     def _set_permission(self, path: str, permission: str) -> str:
         """
-        Définit les permissions d'un fichier ou répertoire via SETPERMISSION.
-        
-        :param path: Chemin HDFS.
-        :param permission: Permissions à appliquer.
-        :return: Message de confirmation.
+        Set permissions for a file or directory via SETPERMISSION.
+
+        :param path: HDFS path.
+        :param permission: Permissions to apply.
+        :return: Confirmation message.
         """
         self._execute("PUT", "SETPERMISSION", path, permission=permission)
         return f"Permission {permission} set for {path}"
 
-    def _recursive_set_permission(self, path: str, permission: str) -> None:
+    def _set_permission_recursive(self, path: str, permission: str):
         """
-        Applique récursivement une modification des permissions à un répertoire et son contenu.
-        
-        :param path: Chemin HDFS.
-        :param permission: Permissions à appliquer.
+        Recursively apply permission changes to a directory
+        and its contents.
+
+        :param path: HDFS path.
+        :param permission: Permissions to apply.
         """
         self._set_permission(path, permission)
         try:
@@ -205,31 +229,32 @@ class WebHDFSMagics(Magics):
         except Exception:
             return
         for _, row in df.iterrows():
-            full_path = path.rstrip('/') + '/' + row['name']
-            if row['type'] == 'DIR':
+            full_path = path.rstrip("/") + "/" + row["name"]
+            if row["type"] == "DIR":
                 self._recursive_set_permission(full_path, permission)
             else:
                 self._set_permission(full_path, permission)
 
-    def _set_owner(self, path: str, owner: str, group: str) -> str:
+    def _set_owner(self, path: str, owner: str, group: Optional[str] = None) -> str:
         """
-        Définit le propriétaire et le groupe d'un fichier/répertoire via SETOWNER.
-        
-        :param path: Chemin HDFS.
-        :param owner: Nouveau propriétaire.
-        :param group: Nouveau groupe.
-        :return: Message de confirmation.
+        Set the owner and group of a file/directory via SETOWNER.
+
+        :param path: HDFS path.
+        :param owner: Owner name.
+        :param group: Group name.
+        :return: Confirmation message.
         """
         self._execute("PUT", "SETOWNER", path, owner=owner, group=group)
         return f"Owner {owner}:{group} set for {path}"
 
     def _recursive_set_owner(self, path: str, owner: str, group: str) -> None:
         """
-        Applique récursivement un changement de propriétaire et de groupe à un répertoire et son contenu.
-        
-        :param path: Chemin HDFS.
-        :param owner: Nouveau propriétaire.
-        :param group: Nouveau groupe.
+        Recursively apply owner and group changes
+        to a directory and its contents.
+
+        :param path: HDFS path.
+        :param owner: New owner.
+        :param group: New group.
         """
         self._set_owner(path, owner, group)
         try:
@@ -237,8 +262,8 @@ class WebHDFSMagics(Magics):
         except Exception:
             return
         for _, row in df.iterrows():
-            full_path = path.rstrip('/') + '/' + row['name']
-            if row['type'] == 'DIR':
+            full_path = path.rstrip("/") + "/" + row["name"]
+            if row["type"] == "DIR":
                 self._recursive_set_owner(full_path, owner, group)
             else:
                 self._set_owner(full_path, owner, group)
@@ -246,10 +271,10 @@ class WebHDFSMagics(Magics):
     @line_magic
     def hdfs(self, line: str) -> Union[pd.DataFrame, str, HTML]:
         """
-        Point d'entrée principal pour les commandes magiques %hdfs.
+        Main entry point for %hdfs magic commands.
 
         Commandes supportées : help, setconfig, ls, mkdir, rm, put, get, cat, chmod, chown.
-        
+
         :param line: Ligne de commande saisie par l'utilisateur.
         :return: Résultat de la commande ou aide HTML.
         """
@@ -291,20 +316,30 @@ class WebHDFSMagics(Magics):
                     base_dir = os.path.dirname(rm_path_pattern)
                     pattern = os.path.basename(rm_path_pattern)
                     df = self._format_ls(base_dir)
-                    matching_files = df[df['name'].apply(lambda x: fnmatch.fnmatch(x, pattern))]
+                    matching_files = df[df["name"].apply(lambda x: fnmatch.fnmatch(x, pattern))]
                     if matching_files.empty:
                         return f"No file matches the pattern {rm_path_pattern}"
                     responses = []
                     for _, row in matching_files.iterrows():
-                        full_path = base_dir.rstrip('/') + '/' + row['name']
+                        full_path = base_dir.rstrip("/") + "/" + row["name"]
                         try:
-                            self._execute("DELETE", "DELETE", full_path, recursive="true" if recursive else "false")
+                            self._execute(
+                                "DELETE",
+                                "DELETE",
+                                full_path,
+                                recursive="true" if recursive else "false",
+                            )
                             responses.append(f"{full_path} deleted")
                         except Exception as e:
                             responses.append(f"Error for {full_path}: {str(e)}")
                     return "\n".join(responses)
                 else:
-                    return self._execute("DELETE", "DELETE", rm_path_pattern, recursive="true" if recursive else "false")
+                    return self._execute(
+                        "DELETE",
+                        "DELETE",
+                        rm_path_pattern,
+                        recursive="true" if recursive else "false",
+                    )
 
             elif cmd == "put":
                 local_file_pattern = args[0]
@@ -317,11 +352,11 @@ class WebHDFSMagics(Magics):
                     if not os.path.isabs(local_file):
                         local_file = os.path.join(os.getcwd(), local_file)
                     final_hdfs_path = hdfs_path
-                    if hdfs_path.endswith('/') or hdfs_path.endswith('.'):
-                        if hdfs_path.endswith('/.'):
+                    if hdfs_path.endswith("/") or hdfs_path.endswith("."):
+                        if hdfs_path.endswith("/."):
                             final_hdfs_path = hdfs_path[:-1]
-                        if not final_hdfs_path.endswith('/'):
-                            final_hdfs_path += '/'
+                        if not final_hdfs_path.endswith("/"):
+                            final_hdfs_path += "/"
                         final_hdfs_path = final_hdfs_path + os.path.basename(local_file)
                     with open(local_file, "rb") as f:
                         # Step 1: Initialize file creation to get the redirect URL.
@@ -332,7 +367,7 @@ class WebHDFSMagics(Magics):
                             params=init_params,
                             auth=(self.auth_user, self.auth_password),
                             verify=self.verify_ssl,
-                            allow_redirects=False
+                            allow_redirects=False,
                         )
                         if init_response.status_code == 307:
                             redirect_url = init_response.headers.get("Location")
@@ -344,15 +379,20 @@ class WebHDFSMagics(Magics):
                                 redirect_url,
                                 data=f,
                                 auth=(self.auth_user, self.auth_password),
-                                verify=self.verify_ssl
+                                verify=self.verify_ssl,
                             )
                             try:
                                 upload_response.raise_for_status()
-                                responses.append(f"{local_file} uploaded successfully to {final_hdfs_path}")
+                                responses.append(
+                                    f"{local_file} uploaded successfully to {final_hdfs_path}"
+                                )
                             except Exception as e:
                                 responses.append(f"Error for {local_file}: {str(e)}")
                         else:
-                            responses.append(f"Initiation failed for {local_file}, status: {init_response.status_code}")
+                            responses.append(
+                                f"Initiation failed for {local_file}, "
+                                f"status: {init_response.status_code}"
+                            )
                 return "\n".join(responses)
 
             elif cmd == "get":
@@ -362,25 +402,26 @@ class WebHDFSMagics(Magics):
                     base_dir = os.path.dirname(hdfs_source_pattern)
                     pattern = os.path.basename(hdfs_source_pattern)
                     df = self._format_ls(base_dir)
-                    matching_files = df[df['name'].apply(lambda x: fnmatch.fnmatch(x, pattern))]
+                    matching_files = df[df["name"].apply(lambda x: fnmatch.fnmatch(x, pattern))]
                     if matching_files.empty:
                         return f"No file matches the pattern {hdfs_source_pattern}"
                     responses = []
                     for _, row in matching_files.iterrows():
-                        file_name = row['name']
-                        hdfs_file = base_dir.rstrip('/') + '/' + file_name
+                        file_name = row["name"]
+                        hdfs_file = base_dir.rstrip("/") + "/" + file_name
                         final_local_dest = local_dest
                         if local_dest in [".", "~", "~/"]:
-                            final_local_dest = os.path.join(os.getcwd() if local_dest=="." else os.path.expanduser("~"), file_name)
-                        elif local_dest.endswith('/') or local_dest.endswith('.'):
-                            if not local_dest.endswith('/'):
-                                local_dest += '/'
+                            base = os.getcwd() if local_dest == "." else os.path.expanduser("~")
+                            final_local_dest = os.path.join(base, file_name)
+                        elif local_dest.endswith("/") or local_dest.endswith("."):
+                            if not local_dest.endswith("/"):
+                                local_dest += "/"
                             final_local_dest = os.path.join(local_dest, file_name)
                         response = requests.get(
                             f"{self.knox_url}{self.webhdfs_api}{hdfs_file}?op=OPEN",
                             auth=(self.auth_user, self.auth_password),
                             verify=self.verify_ssl,
-                            stream=True
+                            stream=True,
                         )
                         try:
                             response.raise_for_status()
@@ -395,19 +436,23 @@ class WebHDFSMagics(Magics):
                     return "\n".join(responses)
                 else:
                     if local_dest == ".":
-                        local_dest = os.path.join(os.getcwd(), os.path.basename(hdfs_source_pattern))
+                        local_dest = os.path.join(
+                            os.getcwd(), os.path.basename(hdfs_source_pattern)
+                        )
                     elif local_dest in ["~", "~/"]:
-                        local_dest = os.path.join(os.path.expanduser("~"), os.path.basename(hdfs_source_pattern))
+                        local_dest = os.path.join(
+                            os.path.expanduser("~"), os.path.basename(hdfs_source_pattern)
+                        )
                     else:
-                        if local_dest.endswith('/') or local_dest.endswith('.'):
-                            if not local_dest.endswith('/'):
-                                local_dest += '/'
+                        if local_dest.endswith("/") or local_dest.endswith("."):
+                            if not local_dest.endswith("/"):
+                                local_dest += "/"
                             local_dest = local_dest + os.path.basename(hdfs_source_pattern)
                     response = requests.get(
                         f"{self.knox_url}{self.webhdfs_api}{hdfs_source_pattern}?op=OPEN",
                         auth=(self.auth_user, self.auth_password),
                         verify=self.verify_ssl,
-                        stream=True
+                        stream=True,
                     )
                     try:
                         response.raise_for_status()
@@ -432,9 +477,7 @@ class WebHDFSMagics(Magics):
                         return "Error: invalid number of lines specified."
                 url = f"{self.knox_url}{self.webhdfs_api}{file_path}?op=OPEN"
                 response = requests.get(
-                    url,
-                    auth=(self.auth_user, self.auth_password),
-                    verify=self.verify_ssl
+                    url, auth=(self.auth_user, self.auth_password), verify=self.verify_ssl
                 )
                 try:
                     response.raise_for_status()
@@ -506,7 +549,10 @@ class WebHDFSMagics(Magics):
                     <td>Display this help</td>
                 </tr>
                 <tr>
-                    <td>%hdfs setconfig {"knox_url": "...", "webhdfs_api": "...", "username": "...", "password": "...", "verify_ssl": false}</td>
+                    <td>
+                        %hdfs setconfig {"knox_url": "...", "webhdfs_api": "...",<br>
+                        "username": "...", "password": "...", "verify_ssl": false}
+                    </td>
                     <td>Set configuration and credentials directly in the notebook</td>
                 </tr>
                 <tr>
@@ -535,7 +581,8 @@ class WebHDFSMagics(Magics):
                     <td>%hdfs get &lt;hdfs_file_or_pattern&gt; &lt;local_destination&gt;</td>
                     <td>
                         Download one or more files from HDFS.<br>
-                        If the local destination is a directory (or "."/~), the original file name is appended.
+                        If the local destination is a directory (or "."/~),<br>
+                        the original file name is appended.
                     </td>
                 </tr>
                 <tr>
@@ -564,10 +611,11 @@ class WebHDFSMagics(Magics):
         """
         return HTML(html)
 
+
 def load_ipython_extension(ipython):
     """
     Fonction d'extension IPython qui enregistre les magics.
-    
+
     :param ipython: L'instance IPython.
     """
     ipython.register_magics(WebHDFSMagics)

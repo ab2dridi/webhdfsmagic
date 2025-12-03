@@ -1,0 +1,7 @@
+{
+  "knox_url": "https://your-knox-gateway:8443/gateway/default",
+  "password": "your_password",
+  "username": "your_username",
+  "verify_ssl": "/path/to/your/cacert.pem",
+  "webhdfs_api": "/webhdfs/v1"
+}
