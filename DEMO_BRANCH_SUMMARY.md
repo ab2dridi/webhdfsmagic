@@ -23,33 +23,29 @@ pytest tests/ -v
 # ====== 12 passed in 0.76s ======
 ```
 
-### ✅ 2. Clean Demo Notebooks Created
+### ✅ 2. Unified Demo Notebook Created
 
-#### `demo_quick_start.ipynb`
-- **Purpose**: Professional showcase for potential users
+#### `demo.ipynb`
+- **Purpose**: Comprehensive demonstration with professional narrative
 - **Features**:
+  - User stories for each operation (data engineer, analyst, scientist perspectives)
+  - Step-by-step guided workflow
   - Comparison with PyWebHdfsClient showing 93% code reduction
-  - Step-by-step guide through all features
+  - Real-world scenarios and use cases
+  - Complete data validation workflow
+  - Batch operations demonstration
   - English language for international audience
   - Clean, well-documented cells
-  - Real-world workflow example
+  - Best practices and tips
 
-#### `demo_complete.ipynb`
-- **Purpose**: Complete feature demonstration
-- **Content**: Copy of quick start (placeholder for future expansion)
+**Consolidation**: Replaced 3 separate notebooks (demo_quick_start, demo_complete, test_local_hdfs) with single unified demo
 
-### ✅ 3. Test Notebook Cleaned
+Cleaned up:
+- ❌ Removed: `stat`, `du`, `mv` commands (not yet implemented)
+- ❌ Removed: Debug code and manual upload tests
+- ✅ Kept: Only working commands (ls, mkdir, put, get, cat, rm)
 
-#### `test_local_hdfs.ipynb`
-- Kept all working operations (ls, mkdir, put, get, cat, rm)
-- Removed unimplemented commands:
-  - ❌ `stat` - Not yet implemented
-  - ❌ `du` - Not yet implemented  
-  - ❌ `mv` - Not yet implemented
-  - ❌ `mkdir -p` - Flag unnecessary (mkdir creates parents automatically)
-- Removed debug cell (manual upload test)
-
-### ✅ 4. Comprehensive Documentation
+### ✅ 3. Comprehensive Documentation
 
 #### `DEMO_README.md`
 Complete guide including:
@@ -60,7 +56,7 @@ Complete guide including:
 - Performance metrics
 - Access points and URLs
 
-### ✅ 5. Improved `.gitignore`
+### ✅ 4. Improved `.gitignore`
 Added rules to exclude:
 - Generated CSV files from demos
 - Backup notebook files (`.bak`)
@@ -106,9 +102,7 @@ demo/
 ├── nginx.conf               # Knox Gateway simulator config
 ├── hadoop.env               # Hadoop configuration
 ├── examples/
-│   ├── demo_quick_start.ipynb    # Clean showcase notebook
-│   ├── demo_complete.ipynb       # Complete feature demo
-│   ├── test_local_hdfs.ipynb     # Technical testing notebook
+│   ├── demo.ipynb                # Unified comprehensive demo
 │   └── config/                   # Sample configurations
 ├── tests/
 │   └── test_magics.py       # Fixed unit tests
@@ -123,20 +117,20 @@ demo/
 git checkout demo
 docker-compose up -d
 pytest tests/  # Verify all tests pass
-jupyter notebook examples/test_local_hdfs.ipynb
+jupyter notebook examples/demo.ipynb
 ```
 
 ### For Demos/Presentations
 ```bash
 git checkout demo
 docker-compose up -d
-jupyter notebook examples/demo_quick_start.ipynb
+jupyter notebook examples/demo.ipynb
 ```
 
 ### For New Contributors
 1. Read `DEMO_README.md`
-2. Run `demo_quick_start.ipynb` to see features
-3. Study `test_local_hdfs.ipynb` for implementation details
+2. Run `demo.ipynb` to see all features with user stories
+3. Review code in `webhdfsmagic/magics.py` for implementation details
 
 ## Comparison: Before vs After
 

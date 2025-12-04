@@ -108,31 +108,23 @@ EOF
 
 ```bash
 # Launch Jupyter
-jupyter notebook examples/demo_quick_start.ipynb
+jupyter notebook examples/demo.ipynb
 ```
 
-Or use the complete test notebook:
-```bash
-jupyter notebook examples/test_local_hdfs.ipynb
-```
+## 📚 Demo Notebook
 
-## 📚 Demo Notebooks
-
-### `demo_quick_start.ipynb`
-A clean, professional demonstration showcasing:
+### `demo.ipynb`
+A complete, comprehensive demonstration featuring:
+- User stories for each operation
+- Step-by-step narrative structure  
 - Configuration and connection
 - Directory operations (ls, mkdir)
 - File upload/download (put, get)
 - File reading (cat)
 - Batch operations with wildcards
-- Complete data workflow example
+- Complete data workflow examples
 - Comparison with PyWebHdfsClient
-
-### `test_local_hdfs.ipynb`
-Technical testing notebook for validation:
-- All HDFS operations
-- Error handling
-- Edge cases
+- Best practices and tips
 - Performance testing
 
 ## 🌐 Access Points

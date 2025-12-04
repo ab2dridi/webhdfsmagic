@@ -72,7 +72,7 @@ curl "http://localhost:8080/gateway/default/webhdfs/v1/test?op=LISTSTATUS&user.n
 
 ## 📓 Utilisation du notebook de démonstration
 
-Le notebook `examples/demo_complete.ipynb` contient une démonstration complète de toutes les fonctionnalités.
+The notebook `examples/demo.ipynb` contains a complete demonstration of all features with user stories.
 
 Pour l'utiliser avec cet environnement local :
 

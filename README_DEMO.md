@@ -38,10 +38,9 @@ jupyter notebook examples/demo_quick_start.ipynb
 - ✅ All unit tests passing
 - ✅ Production-ready examples
 
-## 🎓 Demo Notebooks
+## 🎓 Demo Notebook
 
-1. **`examples/demo_quick_start.ipynb`** - Professional showcase (start here!)
-2. **`examples/test_local_hdfs.ipynb`** - Technical testing
+**`examples/demo.ipynb`** - Complete demonstration with user stories and step-by-step guide
 
 ## 🔗 Useful Links
 
@@ -59,4 +58,4 @@ See [DEMO_README.md](DEMO_README.md) for:
 
 ---
 
-**Ready?** Start with: `docker-compose up -d && jupyter notebook examples/demo_quick_start.ipynb`
+**Ready?** Start with: `docker-compose up -d && jupyter notebook examples/demo.ipynb`
