@@ -155,6 +155,9 @@ class WebHDFSMagics(Magics):
         """
         url = f"{self.knox_url}{self.webhdfs_api}{path}"
         params["op"] = operation
+        # Ajouter user.name si pas déjà présent
+        if "user.name" not in params and self.auth_user:
+            params["user.name"] = self.auth_user
 
         response = requests.request(
             method=method,
@@ -278,6 +281,10 @@ class WebHDFSMagics(Magics):
         :param line: Ligne de commande saisie par l'utilisateur.
         :return: Résultat de la commande ou aide HTML.
         """
+        # Import needed for redirect handling
+        from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+        import re
+        
         parts = line.strip().split()
         if not parts:
             return self._help()
@@ -374,6 +381,32 @@ class WebHDFSMagics(Magics):
                             if not redirect_url:
                                 responses.append(f"Error for {local_file}: Missing redirect URL.")
                                 continue
+                            
+                            # Fix Docker internal hostnames (12-char hex) -> localhost
+                            # e.g., http://2045fadf12d5:9864/... -> http://localhost:9864/...
+                            from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+                            import re
+                            parsed = urlparse(redirect_url)
+                            # Detect Docker container ID pattern (12 hex chars)
+                            hostname = parsed.hostname
+                            if re.match(r'^[0-9a-f]{12}$', hostname):
+                                hostname = 'localhost'
+                            
+                            # Ensure user.name is in the query parameters for DataNode auth
+                            query_params = parse_qs(parsed.query)
+                            if 'user.name' not in query_params and self.auth_user:
+                                query_params['user.name'] = [self.auth_user]
+                            
+                            # Reconstruct URL
+                            redirect_url = urlunparse((
+                                parsed.scheme,
+                                f'{hostname}:{parsed.port}' if parsed.port else hostname,
+                                parsed.path,
+                                parsed.params,
+                                urlencode(query_params, doseq=True),
+                                parsed.fragment
+                            ))
+                            
                             # Step 2: Upload the file using streaming by passing the file handle.
                             upload_response = requests.put(
                                 redirect_url,
@@ -422,8 +455,40 @@ class WebHDFSMagics(Magics):
                             auth=(self.auth_user, self.auth_password),
                             verify=self.verify_ssl,
                             stream=True,
+                            allow_redirects=False,
                         )
                         try:
+                            # Handle redirect manually to fix DataNode hostname
+                            if response.status_code == 307:
+                                redirect_url = response.headers.get("Location")
+                                parsed = urlparse(redirect_url)
+                                
+                                # Fix Docker internal hostnames
+                                hostname = parsed.hostname
+                                if re.match(r'^[0-9a-f]{12}$', hostname):
+                                    hostname = 'localhost'
+                                
+                                # Ensure user.name is in the query parameters
+                                query_params = parse_qs(parsed.query)
+                                if 'user.name' not in query_params and self.auth_user:
+                                    query_params['user.name'] = [self.auth_user]
+                                
+                                # Reconstruct URL
+                                fixed_url = urlunparse((
+                                    parsed.scheme,
+                                    f'{hostname}:{parsed.port}' if parsed.port else hostname,
+                                    parsed.path,
+                                    parsed.params,
+                                    urlencode(query_params, doseq=True),
+                                    parsed.fragment
+                                ))
+                                
+                                response = requests.get(
+                                    fixed_url,
+                                    auth=(self.auth_user, self.auth_password),
+                                    verify=self.verify_ssl,
+                                    stream=True,
+                                )
                             response.raise_for_status()
                             with open(final_local_dest, "wb") as f:
                                 for chunk in response.iter_content(chunk_size=8192):
@@ -435,32 +500,67 @@ class WebHDFSMagics(Magics):
                             responses.append(f"Error for {hdfs_file}: {str(e)}\nTraceback:\n{tb}")
                     return "\n".join(responses)
                 else:
+                    # Single file download
+                    final_local_dest = local_dest
                     if local_dest == ".":
-                        local_dest = os.path.join(
+                        final_local_dest = os.path.join(
                             os.getcwd(), os.path.basename(hdfs_source_pattern)
                         )
                     elif local_dest in ["~", "~/"]:
-                        local_dest = os.path.join(
+                        final_local_dest = os.path.join(
                             os.path.expanduser("~"), os.path.basename(hdfs_source_pattern)
                         )
                     else:
                         if local_dest.endswith("/") or local_dest.endswith("."):
                             if not local_dest.endswith("/"):
                                 local_dest += "/"
-                            local_dest = local_dest + os.path.basename(hdfs_source_pattern)
+                            final_local_dest = local_dest + os.path.basename(hdfs_source_pattern)
+                    
                     response = requests.get(
                         f"{self.knox_url}{self.webhdfs_api}{hdfs_source_pattern}?op=OPEN",
                         auth=(self.auth_user, self.auth_password),
                         verify=self.verify_ssl,
                         stream=True,
+                        allow_redirects=False,
                     )
                     try:
+                        # Handle redirect manually to fix DataNode hostname
+                        if response.status_code == 307:
+                            redirect_url = response.headers.get("Location")
+                            parsed = urlparse(redirect_url)
+                            
+                            # Fix Docker internal hostnames
+                            hostname = parsed.hostname
+                            if re.match(r'^[0-9a-f]{12}$', hostname):
+                                hostname = 'localhost'
+                            
+                            # Ensure user.name is in the query parameters
+                            query_params = parse_qs(parsed.query)
+                            if 'user.name' not in query_params and self.auth_user:
+                                query_params['user.name'] = [self.auth_user]
+                            
+                            # Reconstruct URL
+                            fixed_url = urlunparse((
+                                parsed.scheme,
+                                f'{hostname}:{parsed.port}' if parsed.port else hostname,
+                                parsed.path,
+                                parsed.params,
+                                urlencode(query_params, doseq=True),
+                                parsed.fragment
+                            ))
+                            
+                            response = requests.get(
+                                fixed_url,
+                                auth=(self.auth_user, self.auth_password),
+                                verify=self.verify_ssl,
+                                stream=True,
+                            )
                         response.raise_for_status()
-                        with open(local_dest, "wb") as f:
+                        with open(final_local_dest, "wb") as f:
                             for chunk in response.iter_content(chunk_size=8192):
                                 if chunk:
                                     f.write(chunk)
-                        return f"File downloaded to {local_dest}"
+                        return f"{hdfs_source_pattern} downloaded to {final_local_dest}"
                     except Exception as e:
                         tb = traceback.format_exc()
                         return f"Error: {str(e)}\nTraceback:\n{tb}"
@@ -468,18 +568,64 @@ class WebHDFSMagics(Magics):
             elif cmd == "cat":
                 if not args:
                     return "Usage: %hdfs cat <file> [-n <number_of_lines>]"
-                file_path = args[0]
+                
+                # Parse arguments - handle both orders: file first or -n first
+                file_path = None
                 num_lines = 100
-                if len(args) > 1 and args[1] == "-n":
-                    try:
-                        num_lines = int(args[2])
-                    except (IndexError, ValueError):
-                        return "Error: invalid number of lines specified."
+                
+                i = 0
+                while i < len(args):
+                    if args[i] == "-n":
+                        try:
+                            num_lines = int(args[i + 1])
+                            i += 2
+                        except (IndexError, ValueError):
+                            return "Error: invalid number of lines specified."
+                    else:
+                        file_path = args[i]
+                        i += 1
+                
+                if not file_path:
+                    return "Usage: %hdfs cat <file> [-n <number_of_lines>]"
+                
                 url = f"{self.knox_url}{self.webhdfs_api}{file_path}?op=OPEN"
                 response = requests.get(
-                    url, auth=(self.auth_user, self.auth_password), verify=self.verify_ssl
+                    url, 
+                    auth=(self.auth_user, self.auth_password), 
+                    verify=self.verify_ssl,
+                    allow_redirects=False
                 )
                 try:
+                    # Handle redirect manually to fix DataNode hostname
+                    if response.status_code == 307:
+                        redirect_url = response.headers.get("Location")
+                        parsed = urlparse(redirect_url)
+                        
+                        # Fix Docker internal hostnames (12-char hex) -> localhost
+                        hostname = parsed.hostname
+                        if re.match(r'^[0-9a-f]{12}$', hostname):
+                            hostname = 'localhost'
+                        
+                        # Ensure user.name is in the query parameters
+                        query_params = parse_qs(parsed.query)
+                        if 'user.name' not in query_params and self.auth_user:
+                            query_params['user.name'] = [self.auth_user]
+                        
+                        # Reconstruct URL
+                        fixed_url = urlunparse((
+                            parsed.scheme,
+                            f'{hostname}:{parsed.port}' if parsed.port else hostname,
+                            parsed.path,
+                            parsed.params,
+                            urlencode(query_params, doseq=True),
+                            parsed.fragment
+                        ))
+                        
+                        response = requests.get(
+                            fixed_url,
+                            auth=(self.auth_user, self.auth_password),
+                            verify=self.verify_ssl,
+                        )
                     response.raise_for_status()
                     content = response.content.decode("utf-8", errors="replace")
                     lines = content.splitlines()

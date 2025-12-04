@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <property>
+        <name>gateway.port</name>
+        <value>8080</value>
+    </property>
+    <property>
+        <name>gateway.path</name>
+        <value>gateway</value>
+    </property>
+    <property>
+        <name>gateway.gateway.conf.dir</name>
+        <value>/knox/conf</value>
+    </property>
+    <property>
+        <name>gateway.hadoop.kerberos.secured</name>
+        <value>false</value>
+    </property>
+    <property>
+        <name>gateway.dispatch.whitelist</name>
+        <value>^.*$</value>
+    </property>
+    <property>
+        <name>gateway.httpclient.connectionTimeout</name>
+        <value>-1</value>
+    </property>
+    <property>
+        <name>gateway.httpclient.socketTimeout</name>
+        <value>-1</value>
+    </property>
+</configuration>

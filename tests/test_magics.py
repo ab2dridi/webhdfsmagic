@@ -63,7 +63,7 @@ def test_cat_default(monkeypatch, magics_instance):
     fake_response = MagicMock()
     fake_response.content = fake_content.encode("utf-8")
     fake_response.status_code = 200
-    monkeypatch.setattr(requests, "get", lambda url, auth, verify: fake_response)
+    monkeypatch.setattr(requests, "get", lambda url, auth, verify, allow_redirects=True: fake_response)
     result = magics_instance.hdfs("cat /fake-file")
     lines = result.splitlines()
     assert len(lines) == 100
@@ -77,7 +77,7 @@ def test_cat_full(monkeypatch, magics_instance):
     fake_response = MagicMock()
     fake_response.content = fake_content.encode("utf-8")
     fake_response.status_code = 200
-    monkeypatch.setattr(requests, "get", lambda url, auth, verify: fake_response)
+    monkeypatch.setattr(requests, "get", lambda url, auth, verify, allow_redirects=True: fake_response)
     result = magics_instance.hdfs("cat /fake-file -n -1")
     lines = result.splitlines()
     assert len(lines) == 50

@@ -1,0 +1,6 @@
+customer_id,name,age,city,total_purchases
+1,Alice,28,Paris,1250.5
+2,Bob,34,Lyon,890.25
+3,Charlie,45,Marseille,2100.75
+4,Diana,29,Toulouse,450.0
+5,Eve,52,Nice,3200.8

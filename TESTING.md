@@ -2,6 +2,33 @@
 
 This guide explains how to test `webhdfsmagic` without requiring an actual HDFS cluster.
 
+## ⚠️ Important Notes
+
+### mkdir Command - No `-p` Option Needed
+
+The `%hdfs mkdir` command **automatically creates parent directories**, similar to `mkdir -p` in Unix. You do **NOT** need to use the `-p` flag.
+
+#### ✅ Correct Usage
+
+```python
+# Creates /demo/data/2024/12 and all parent directories automatically
+%hdfs mkdir /demo/data/2024/12
+
+# Simple directory
+%hdfs mkdir /test
+```
+
+#### ❌ Incorrect Usage
+
+```python
+# The -p option does NOT exist and will cause an error
+%hdfs mkdir -p /demo/data  # ❌ DO NOT USE
+```
+
+**Technical Explanation**: WebHDFS uses the `MKDIRS` operation which inherently creates all parent directories, so no additional flag is necessary.
+
+---
+
 ## 🎯 Testing Options
 
 ### Option 1: Mock-based Testing (Recommended) ✅
