@@ -6,7 +6,14 @@ The `demo` branch provides a complete, production-ready demonstration environmen
 
 ## What Was Accomplished
 
-### ✅ 1. Unit Tests Fixed
+### ✅ 1. Critical Bug Fix: rm -r Argument Parsing
+- **Issue**: Command `rm -r /path` was causing HTTP 405 errors
+- **Root Cause**: Code was taking `args[0]` as path, so `-r` flag was treated as the path when specified first
+- **Impact**: URL was constructed as `/webhdfs/v1-r` instead of `/webhdfs/v1/demo/sales`
+- **Fix**: Filter out `-r` flag before extracting path argument
+- **Result**: Both `rm -r /path` and `rm /path -r` now work correctly ✅
+
+### ✅ 2. Unit Tests Fixed
 - **Issue**: Tests were failing due to new `allow_redirects` parameter in `cat` command
 - **Fix**: Updated mock functions in `tests/test_magics.py` to accept the parameter
 - **Result**: All 12 tests passing ✅
