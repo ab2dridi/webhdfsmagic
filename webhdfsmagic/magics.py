@@ -317,8 +317,12 @@ class WebHDFSMagics(Magics):
                 return self._execute("PUT", "MKDIRS", args[0])
 
             elif cmd == "rm":
-                rm_path_pattern = args[0]
                 recursive = "-r" in args
+                # Filter out the -r flag to get the actual path
+                path_args = [arg for arg in args if arg != "-r"]
+                if not path_args:
+                    return "Error: No path specified for rm command"
+                rm_path_pattern = path_args[0]
                 if "*" in rm_path_pattern or "?" in rm_path_pattern:
                     base_dir = os.path.dirname(rm_path_pattern)
                     pattern = os.path.basename(rm_path_pattern)
