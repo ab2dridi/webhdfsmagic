@@ -1,6 +1,21 @@
-customer_id,name,age,city,total_purchases
-1,Alice,28,Paris,1250.5
-2,Bob,34,Lyon,890.25
-3,Charlie,45,Marseille,2100.75
-4,Diana,29,Toulouse,450.0
-5,Eve,52,Nice,3200.8
+customer_id,name,email,total_purchases,loyalty_tier
+1,Customer 1,customer1@example.com,100.5,Bronze
+2,Customer 2,customer2@example.com,201.0,Bronze
+3,Customer 3,customer3@example.com,301.5,Bronze
+4,Customer 4,customer4@example.com,402.0,Bronze
+5,Customer 5,customer5@example.com,502.5,Bronze
+6,Customer 6,customer6@example.com,603.0,Bronze
+7,Customer 7,customer7@example.com,703.5,Bronze
+8,Customer 8,customer8@example.com,804.0,Bronze
+9,Customer 9,customer9@example.com,904.5,Bronze
+10,Customer 10,customer10@example.com,1005.0,Bronze
+11,Customer 11,customer11@example.com,1105.5,Silver
+12,Customer 12,customer12@example.com,1206.0,Silver
+13,Customer 13,customer13@example.com,1306.5,Silver
+14,Customer 14,customer14@example.com,1407.0,Silver
+15,Customer 15,customer15@example.com,1507.5,Silver
+16,Customer 16,customer16@example.com,1608.0,Gold
+17,Customer 17,customer17@example.com,1708.5,Gold
+18,Customer 18,customer18@example.com,1809.0,Gold
+19,Customer 19,customer19@example.com,1909.5,Gold
+20,Customer 20,customer20@example.com,2010.0,Gold

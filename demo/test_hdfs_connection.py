@@ -3,15 +3,15 @@
 Script de test simple pour vérifier que webhdfsmagic fonctionne avec le système HDFS local
 """
 
-import sys
 import os
+import sys
 
 # Ajouter le chemin local pour importer webhdfsmagic
 sys.path.insert(0, '/workspaces/webhdfsmagic')
 
-from webhdfsmagic.magics import WebHDFSMagics
-from IPython import get_ipython
 from IPython.terminal.interactiveshell import TerminalInteractiveShell
+
+from webhdfsmagic.magics import WebHDFSMagics
 
 # Créer une session IPython
 ipython = TerminalInteractiveShell.instance()
