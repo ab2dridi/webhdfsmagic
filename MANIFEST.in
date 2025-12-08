@@ -2,13 +2,13 @@
 include README.md
 include LICENSE
 include ROADMAP.md
+include pyproject.toml
 
 # Include package data
 recursive-include webhdfsmagic *.py
 
 # Exclude development and temporary files
 exclude .gitignore
-exclude pyproject.toml
 exclude requirements.txt
 recursive-exclude tests *
 recursive-exclude demo *
