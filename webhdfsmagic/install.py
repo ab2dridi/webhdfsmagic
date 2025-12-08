@@ -31,21 +31,17 @@ except Exception:
     pass  # Silently fail if not in IPython/Jupyter
 """
 
-        # Check if script already exists
-        if dest_script.exists():
-            with open(dest_script) as f:
-                content = f.read()
-
-            if "webhdfsmagic" in content:
-                return True  # Already configured
-
-        # Create startup script
+        # Always write/overwrite to ensure latest version
         with open(dest_script, "w") as f:
             f.write(script_content)
 
         return True
-    except Exception:
+    except Exception as e:
         # Don't fail pip install if this doesn't work
+        # but we can log for debugging
+        import sys
+        if hasattr(sys, 'stderr'):
+            print(f"Note: Could not install autoload script ({e})", file=sys.stderr)
         return False
 
 

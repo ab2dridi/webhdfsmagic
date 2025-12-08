@@ -11,7 +11,7 @@ from .magics import load_ipython_extension as load_ipython_extension
 
 __all__ = ["WebHDFSMagics", "load_ipython_extension", "__version__"]
 
-# Auto-configure on first import (only once)
+# Auto-configure on first import (only once per environment)
 def _setup_autoload():
     """Set up automatic loading of webhdfsmagic in Jupyter/IPython."""
     try:
@@ -21,16 +21,20 @@ def _setup_autoload():
         pass  # Silently fail - don't break imports
 
 
-# Run setup only once per installation
+# Run setup automatically on import
 try:
     import os
     from pathlib import Path
 
-    # Check if already set up by looking for the marker file
-    marker_file = Path(os.path.expanduser("~/.webhdfsmagic/.installed"))
-    if not marker_file.exists():
+    # Check if startup script exists (better indicator than marker file)
+    ipython_startup = Path.home() / ".ipython" / "profile_default" / "startup" / "00-webhdfsmagic.py"
+    
+    if not ipython_startup.exists():
+        # Startup script doesn't exist, try to create it
         _setup_autoload()
-        # Create marker to avoid running again
+        
+        # Create marker file to track that we attempted installation
+        marker_file = Path.home() / ".webhdfsmagic" / ".installed"
         marker_file.parent.mkdir(parents=True, exist_ok=True)
         marker_file.touch()
 except Exception:

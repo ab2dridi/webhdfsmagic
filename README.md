@@ -50,31 +50,26 @@ pip install webhdfsmagic
 git clone https://github.com/ab2dridi/webhdfsmagic.git
 cd webhdfsmagic
 pip install -e .
+
+# Enable autoload (creates startup script)
+jupyter-webhdfsmagic
 ```
 
 ## 🔧 Configuration
 
-### Automatic Loading (Recommended)
+### Automatic Loading
 
-**webhdfsmagic loads automatically** after installation! No need to run `%load_ext webhdfsmagic` in your notebooks.
-
-The first time you import the package, it automatically configures IPython/Jupyter to load the extension on startup. Just install and use:
-
-```bash
-pip install webhdfsmagic
-```
-
-Then in your notebook, magics are ready to use:
-```python
-%hdfs ls /
-```
-
-### Manual Configuration (Optional)
-
-If you need to reconfigure or the automatic setup didn't work, run:
+After installation, **enable autoload** to have webhdfsmagic load automatically in all Jupyter sessions:
 
 ```bash
 jupyter-webhdfsmagic
+```
+
+This creates `~/.ipython/profile_default/startup/00-webhdfsmagic.py` so the extension loads automatically.
+
+**Alternative:** Load manually in each notebook:
+```python
+%load_ext webhdfsmagic
 ```
 
 ### Configuration File
