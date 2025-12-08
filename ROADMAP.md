@@ -22,7 +22,51 @@
 
 ## 🎯 Priority Features
 
-### 1. stat - File Metadata
+### 1. Smart Formatting for `cat` - CSV/TSV/JSON Display ⭐ HIGH PRIORITY
+
+Improve `cat` command with intelligent formatting for structured files
+
+**Current Issue:** CSV files display as raw text with `\n` making them hard to read
+```python
+%hdfs cat /data/sales.csv
+# Output: date,product,amount\n2025-12-08,laptop,1200\n... (unreadable)
+```
+
+**Planned Solution:** Auto-detect format and display as formatted table
+```python
+%hdfs cat /data/sales.csv
+# ┌────────────┬─────────┬────────┐
+# │ date       │ product │ amount │
+# ├────────────┼─────────┼────────┤
+# │ 2025-12-08 │ laptop  │ 1200   │
+# └────────────┴─────────┴────────┘
+
+# Or return as pandas DataFrame
+%hdfs cat --format pandas /data/sales.csv
+```
+
+**Implementation Plan:**
+- Detect file type from extension and content (CSV, TSV, JSON, Parquet)
+- Infer delimiter automatically (comma, tab, pipe, semicolon)
+- Parse header row to identify columns
+- Display as formatted table using `tabulate` or pandas
+- Stream large files (show first N rows to avoid memory issues)
+- Add `--raw` flag to preserve current behavior
+
+**Dependencies:** `pandas`, `tabulate` (optional)
+
+**Use Case:** Data exploration, validation, quick inspection of datasets
+
+### 2. stat - File Metadata
+
+Get detailed information about a file (size, owner, permissions, modification date, etc.)
+
+```python
+%hdfs stat /data/large_file.csv
+# Output: Size: 1.2 GB, Owner: hdfs, Permissions: rw-r--r--, Modified: 2025-12-04 10:30:00
+```
+
+### 2. stat - File Metadata
 
 Get detailed information about a file (size, owner, permissions, modification date, etc.)
 
@@ -33,7 +77,7 @@ Get detailed information about a file (size, owner, permissions, modification da
 
 **Use Case:** Data validation, existence checking, quick inspection before processing
 
-### 2. du - Disk Usage
+### 3. du - Disk Usage
 
 Calculate disk space used by files or directories
 
@@ -52,7 +96,7 @@ Calculate disk space used by files or directories
 
 **Use Case:** Space monitoring, quota management, cleaning old data
 
-### 3. mv - Move/Rename
+### 4. mv - Move/Rename
 
 Move or rename files and directories
 
@@ -66,7 +110,7 @@ Move or rename files and directories
 
 ## 🚀 Future Features
 
-### 4. cp - Copy Files
+### 5. cp - Copy Files
 
 Duplicate files on HDFS for backup or replication
 
@@ -76,7 +120,7 @@ Duplicate files on HDFS for backup or replication
 
 **Use Case:** Backup, data duplication, testing
 
-### 5. tail - Read File End
+### 6. tail - Read File End
 
 Display the last lines of a file (useful for logs)
 
@@ -86,7 +130,7 @@ Display the last lines of a file (useful for logs)
 
 **Use Case:** Log analysis, debugging, monitoring
 
-### 6. find - Search Files
+### 7. find - Search Files
 
 Search files by name or pattern in the tree
 
@@ -97,7 +141,7 @@ Search files by name or pattern in the tree
 
 **Use Case:** Data discovery, audit, cleanup
 
-### 7. Progress Bars
+### 8. Progress Bars
 
 Display progress for long operations (upload/download of large files)
 
@@ -108,7 +152,7 @@ Display progress for long operations (upload/download of large files)
 
 **Use Case:** Better user experience, operation tracking
 
-### 8. Parallel Operations
+### 9. Parallel Operations
 
 Speed up transfers of multiple files with parallelization
 
@@ -118,7 +162,7 @@ Speed up transfers of multiple files with parallelization
 
 **Use Case:** Performance, batch processing
 
-### 9. Checksum - Integrity Verification
+### 10. Checksum - Integrity Verification
 
 Calculate and verify MD5 checksums of files
 
@@ -129,7 +173,7 @@ Calculate and verify MD5 checksums of files
 
 **Use Case:** Integrity validation, corruption detection
 
-### 10. Append - Add to File
+### 11. Append - Add to File
 
 Append content to the end of an existing file
 
@@ -203,7 +247,7 @@ Contributions are welcome! To propose a new feature:
 3. Implement the feature with tests
 4. Submit a Pull Request
 
-**Current Priorities:** `stat`, `du`, `mv`
+**Current Priorities:** Smart formatting for `cat` (CSV/TSV/JSON), `stat`, `du`, `mv`
 
 
 ### Enterprise (Future)
@@ -236,6 +280,7 @@ Want to implement a feature from the roadmap?
 
 ### Why These Features?
 
+- **Smart cat formatting**: Most critical UX improvement - CSV files are unreadable in raw format
 - **stat/du/mv**: Most commonly requested operations from user surveys
 - **Progress bars**: Frequently mentioned in feedback for large file operations
 - **Kerberos**: Required for 80% of enterprise Hadoop deployments
@@ -250,6 +295,6 @@ Want to implement a feature from the roadmap?
 
 ---
 
-**Last Updated**: December 4, 2025  
+**Last Updated**: December 8, 2025  
 **Roadmap Owner**: @ab2dridi  
 **Status**: 🟢 Actively Maintained
