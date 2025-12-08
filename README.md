@@ -26,6 +26,12 @@ df = pd.read_csv('file.csv')
 
 **93% less code!** ✨
 
+## 🎬 See it in Action
+
+![webhdfsmagic demo](docs/demo.gif)
+
+*Complete workflow demo: mkdir → put → ls → cat → get → chmod → rm*
+
 ## ✨ Features
 
 | Command | Description |
