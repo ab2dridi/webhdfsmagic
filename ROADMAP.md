@@ -2,15 +2,23 @@
 
 ## Current Status
 
-**Version 0.0.1** - 8 commands implemented and tested:
-- ✅ `ls` - List files
-- ✅ `mkdir` - Create directories
-- ✅ `put` - Upload files (with wildcards)
-- ✅ `get` - Download files (with wildcards)
-- ✅ `cat` - Display file content
-- ✅ `rm` - Delete files/directories (recursive with `-r`)
-- ✅ `chmod` - Change permissions
-- ⚠️ `chown` - Change owner (requires superuser)
+**Version 0.0.2** - 8 commands fully implemented and tested:
+- ✅ `ls` - List files and directories
+- ✅ `mkdir` - Create directories (with parent creation)
+- ✅ `put` - Upload files (supports wildcards like `*.csv`)
+- ✅ `get` - Download files (supports wildcards and `~` expansion)
+- ✅ `cat` - Display file content (with line limit option)
+- ✅ `rm` - Delete files/directories (recursive with `-r`, supports wildcards)
+- ✅ `chmod` - Change permissions (recursive with `-R`)
+- ✅ `chown` - Change owner (recursive with `-R`, requires superuser)
+
+**Advanced Features:**
+- ✅ Wildcard support for `put`, `get`, and `rm` commands
+- ✅ Recursive operations with `-R` flag for `chmod` and `chown`
+- ✅ Home directory expansion (`~`) in file paths
+- ✅ Docker hostname resolution fix for containerized environments
+- ✅ SSL verification with custom certificates
+- ✅ Streaming support for large file downloads
 
 ## 🎯 Priority Features
 

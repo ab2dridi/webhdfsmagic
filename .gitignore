@@ -236,8 +236,11 @@ sandbox/
 
 # Demo generated files (examples/ specific)
 examples/test_data.csv
+examples/test_file_*.csv
 examples/sales_*.csv
 examples/downloaded_*.csv
 examples/customers.csv
 examples/*.csv.bak
 examples/demo_complete.ipynb.bak
+examples/downloads/
+examples/test_upload_fix.py

@@ -33,11 +33,11 @@ df = pd.read_csv('file.csv')
 | `%hdfs ls [path]` | List files and directories (returns pandas DataFrame) |
 | `%hdfs mkdir <path>` | Create directory (parents created automatically) |
 | `%hdfs put <local> <hdfs>` | Upload one or more files (supports wildcards `*.csv`) |
-| `%hdfs get <hdfs> <local>` | Download files (streaming for large files) |
+| `%hdfs get <hdfs> <local>` | Download files (supports wildcards and `~` for home directory) |
 | `%hdfs cat <file> [-n lines]` | Display file content (default: first 100 lines) |
-| `%hdfs rm [-r] <path>` | Delete files/directories (`-r` for recursive) |
-| `%hdfs chmod <mode> <path>` | Change permissions (e.g., `chmod 755 /data`) |
-| `%hdfs chown <user:group> <path>` | Change owner (requires superuser privileges) |
+| `%hdfs rm [-r] <path>` | Delete files/directories (`-r` for recursive, supports wildcards) |
+| `%hdfs chmod [-R] <mode> <path>` | Change permissions (`-R` for recursive) |
+| `%hdfs chown [-R] <user:group> <path>` | Change owner (`-R` for recursive, requires superuser) |
 
 ## 📦 Installation
 
@@ -54,15 +54,28 @@ pip install -e .
 
 ## 🔧 Configuration
 
-### Automatic Loading
+### Automatic Loading (Recommended)
 
-After installation, configure automatic loading:
+**webhdfsmagic loads automatically** after installation! No need to run `%load_ext webhdfsmagic` in your notebooks.
+
+The first time you import the package, it automatically configures IPython/Jupyter to load the extension on startup. Just install and use:
+
+```bash
+pip install webhdfsmagic
+```
+
+Then in your notebook, magics are ready to use:
+```python
+%hdfs ls /
+```
+
+### Manual Configuration (Optional)
+
+If you need to reconfigure or the automatic setup didn't work, run:
 
 ```bash
 jupyter-webhdfsmagic
 ```
-
-The extension will load automatically every time you start Jupyter. No need for `%load_ext webhdfsmagic`!
 
 ### Configuration File
 
@@ -89,6 +102,42 @@ See [examples/config/](examples/config/) for complete configurations (with/witho
 **Sparkmagic Fallback:**  
 If `~/.webhdfsmagic/config.json` doesn't exist, the package tries `~/.sparkmagic/config.json` and extracts configuration from `kernel_python_credentials.url`.
 
+### Logging & Debugging
+
+All operations are automatically logged to `~/.webhdfsmagic/logs/webhdfsmagic.log` for debugging and auditing purposes.
+
+**Log Features:**
+- ✅ Automatic rotation (10MB per file, keeps 5 backups)
+- ✅ Detailed HTTP request/response logging
+- ✅ Operation tracing with timestamps
+- ✅ Error tracking with full stack traces
+- ✅ Password masking for security
+- ✅ File-level DEBUG logging
+- ✅ Console-level WARNING/ERROR logging
+
+**View Recent Logs:**
+```bash
+# View last 50 lines
+tail -50 ~/.webhdfsmagic/logs/webhdfsmagic.log
+
+# Follow logs in real-time
+tail -f ~/.webhdfsmagic/logs/webhdfsmagic.log
+
+# Search for errors
+grep "ERROR" ~/.webhdfsmagic/logs/webhdfsmagic.log
+
+# View specific operation
+grep "hdfs put" ~/.webhdfsmagic/logs/webhdfsmagic.log
+```
+
+**Log Format:**
+```
+2025-12-08 10:30:15 - webhdfsmagic - INFO - [magics.py:145] - >>> Starting operation: hdfs ls
+2025-12-08 10:30:15 - webhdfsmagic - DEBUG - [client.py:85] - HTTP Request: GET http://...
+2025-12-08 10:30:15 - webhdfsmagic - DEBUG - [client.py:105] - HTTP Response: 200 from http://...
+2025-12-08 10:30:15 - webhdfsmagic - INFO - [magics.py:180] - <<< Operation completed: hdfs ls - SUCCESS
+```
+
 ## 💡 Usage
 
 ```python
@@ -101,23 +150,29 @@ If `~/.webhdfsmagic/config.json` doesn't exist, the package tries `~/.sparkmagic
 # Create a directory
 %hdfs mkdir /user/hdfs/output
 
-# Upload multiple CSV files
+# Upload multiple CSV files using wildcards
 %hdfs put ~/data/*.csv /user/hdfs/input/
 
-# Download a file
-%hdfs get /user/hdfs/results/output.csv .
+# Download a file to home directory
+%hdfs get /user/hdfs/results/output.csv ~/downloads/
+
+# Download multiple files with wildcards
+%hdfs get /user/hdfs/results/*.csv ./local_results/
 
 # Display first 50 lines
 %hdfs cat /user/hdfs/data/file.csv -n 50
 
+# Delete files with wildcards
+%hdfs rm /user/hdfs/temp/*.log
+
 # Delete a directory recursively
 %hdfs rm -r /user/hdfs/temp
 
-# Change permissions
-%hdfs chmod 755 /user/hdfs/data
+# Change permissions recursively
+%hdfs chmod -R 755 /user/hdfs/data
 
-# Change owner (requires superuser privileges)
-%hdfs chown hdfs:hadoop /user/hdfs/data
+# Change owner recursively (requires superuser privileges)
+%hdfs chown -R hdfs:hadoop /user/hdfs/data
 ```
 
 **Integration with pandas:**
@@ -126,6 +181,47 @@ If `~/.webhdfsmagic/config.json` doesn't exist, the package tries `~/.sparkmagic
 %hdfs get /data/sales.csv .
 df = pd.read_csv('sales.csv')
 df.head()
+```
+
+## 🎯 Advanced Features
+
+### Wildcard Operations
+
+Upload, download, and delete multiple files using shell-style wildcards:
+
+```python
+# Upload all CSV files
+%hdfs put data/*.csv /hdfs/input/
+
+# Download specific pattern
+%hdfs get /hdfs/output/result_*.csv ./downloads/
+
+# Delete log files
+%hdfs rm /hdfs/temp/*.log
+```
+
+### Recursive Permissions
+
+Apply permission changes to entire directory trees:
+
+```python
+# Recursive chmod
+%hdfs chmod -R 755 /hdfs/project/
+
+# Recursive chown (requires superuser)
+%hdfs chown -R hdfs:hadoop /hdfs/project/
+```
+
+### Home Directory Expansion
+
+Use `~` as a shortcut for your home directory:
+
+```python
+# Download to home directory
+%hdfs get /hdfs/file.csv ~/downloads/
+
+# Works in subdirectories too
+%hdfs get /hdfs/data/*.csv ~/projects/analysis/
 ```
 
 ## 📚 Documentation and Examples
@@ -169,6 +265,46 @@ jupyter notebook examples/demo.ipynb
 ```
 
 See [demo/README.md](demo/README.md) for complete Docker environment documentation.
+
+## 🐛 Troubleshooting
+
+### Check Logs
+
+All operations are logged to `~/.webhdfsmagic/logs/webhdfsmagic.log`:
+
+```bash
+# View recent activity
+tail -50 ~/.webhdfsmagic/logs/webhdfsmagic.log
+
+# Check for errors
+grep -i "error" ~/.webhdfsmagic/logs/webhdfsmagic.log
+
+# View specific command execution
+grep "hdfs put" ~/.webhdfsmagic/logs/webhdfsmagic.log -A 5
+```
+
+### Common Issues
+
+**Connection Errors:**
+- Check Knox gateway URL in `~/.webhdfsmagic/config.json`
+- Verify SSL settings (`verify_ssl: false` for testing)
+- Check logs for HTTP error details
+
+**Authentication Errors:**
+- Verify username/password in config
+- Check if credentials have expired
+- Review authentication errors in logs
+
+**File Transfer Issues:**
+- Check local file paths exist
+- Verify HDFS paths are absolute (start with `/`)
+- Review detailed HTTP request/response in logs
+- Check disk space on both local and HDFS
+
+**Permission Errors:**
+- Verify HDFS user permissions
+- Check file/directory ownership in HDFS
+- Review operation logs for specific error messages
 
 ## 🤝 Contributing
 

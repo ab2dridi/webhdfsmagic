@@ -1,34 +1,34 @@
 #!/usr/bin/env python3
 """
-Script de test simple pour vérifier que webhdfsmagic fonctionne avec le système HDFS local
+Simple test script to verify that webhdfsmagic works with the local HDFS system
 """
 
 import os
 import sys
 
-# Ajouter le chemin local pour importer webhdfsmagic
+# Add local path to import webhdfsmagic
 sys.path.insert(0, '/workspaces/webhdfsmagic')
 
 from IPython.terminal.interactiveshell import TerminalInteractiveShell
 
 from webhdfsmagic.magics import WebHDFSMagics
 
-# Créer une session IPython
+# Create an IPython session
 ipython = TerminalInteractiveShell.instance()
 
-# Charger l'extension
+# Load the extension
 magics = WebHDFSMagics(ipython)
 ipython.register_magics(magics)
 
 print("=" * 60)
-print("Test de webhdfsmagic avec HDFS local")
+print("Testing webhdfsmagic with local HDFS")
 print("=" * 60)
 
 # Configuration
 print("\n1️⃣ Configuration...")
 config_file = os.path.expanduser("~/.webhdfsmagic/config.json")
 if os.path.exists(config_file):
-    print(f"✓ Fichier de configuration trouvé: {config_file}")
+    print(f"✓ Configuration file found: {config_file}")
     import json
     with open(config_file) as f:
         config = json.load(f)
@@ -36,77 +36,77 @@ if os.path.exists(config_file):
         print(f"  User: {config.get('username')}")
         print(f"  SSL Verify: {config.get('verify_ssl')}")
 else:
-    print(f"✗ Fichier de configuration non trouvé: {config_file}")
+    print(f"✗ Configuration file not found: {config_file}")
     sys.exit(1)
 
-# Test des commandes
-print("\n2️⃣ Test de listing du répertoire racine...")
+# Test commands
+print("\n2️⃣ Testing root directory listing...")
 try:
     result = ipython.run_line_magic('hdfs', 'ls /')
-    print("✓ Listing réussi")
+    print("✓ Listing successful")
 except Exception as e:
-    print(f"✗ Erreur: {e}")
+    print(f"✗ Error: {e}")
 
-print("\n3️⃣ Création d'un répertoire de test...")
+print("\n3️⃣ Creating a test directory...")
 try:
     result = ipython.run_line_magic('hdfs', 'mkdir /test_webhdfs')
-    print("✓ Répertoire créé")
+    print("✓ Directory created")
 except Exception as e:
-    print(f"✗ Erreur: {e}")
+    print(f"✗ Error: {e}")
 
-print("\n4️⃣ Vérification que le répertoire existe...")
+print("\n4️⃣ Verifying directory exists...")
 try:
     result = ipython.run_line_magic('hdfs', 'exists /test_webhdfs')
-    print(f"✓ Répertoire existe: {result}")
+    print(f"✓ Directory exists: {result}")
 except Exception as e:
-    print(f"✗ Erreur: {e}")
+    print(f"✗ Error: {e}")
 
-print("\n5️⃣ Création d'un fichier local de test...")
+print("\n5️⃣ Creating a local test file...")
 test_file = "/tmp/webhdfs_test.txt"
 with open(test_file, 'w') as f:
     f.write("Hello from webhdfsmagic!\nThis is a test file.\n")
-print(f"✓ Fichier créé: {test_file}")
+print(f"✓ File created: {test_file}")
 
-print("\n6️⃣ Upload du fichier vers HDFS...")
+print("\n6️⃣ Uploading file to HDFS...")
 try:
     result = ipython.run_line_magic('hdfs', f'put {test_file} /test_webhdfs/test.txt')
-    print("✓ Upload réussi")
+    print("✓ Upload successful")
 except Exception as e:
-    print(f"✗ Erreur: {e}")
+    print(f"✗ Error: {e}")
 
-print("\n7️⃣ Listing du répertoire de test...")
+print("\n7️⃣ Listing test directory...")
 try:
     result = ipython.run_line_magic('hdfs', 'ls /test_webhdfs')
-    print("✓ Listing réussi")
+    print("✓ Listing successful")
 except Exception as e:
-    print(f"✗ Erreur: {e}")
+    print(f"✗ Error: {e}")
 
-print("\n8️⃣ Lecture du contenu du fichier...")
+print("\n8️⃣ Reading file content...")
 try:
     result = ipython.run_line_magic('hdfs', 'cat /test_webhdfs/test.txt')
-    print("✓ Lecture réussie")
-    print(f"Contenu: {result}")
+    print("✓ Read successful")
+    print(f"Content: {result}")
 except Exception as e:
-    print(f"✗ Erreur: {e}")
+    print(f"✗ Error: {e}")
 
-print("\n9️⃣ Download du fichier depuis HDFS...")
+print("\n9️⃣ Downloading file from HDFS...")
 try:
     download_file = "/tmp/downloaded_test.txt"
     result = ipython.run_line_magic('hdfs', f'get /test_webhdfs/test.txt {download_file}')
-    print("✓ Download réussi")
+    print("✓ Download successful")
     if os.path.exists(download_file):
         with open(download_file) as f:
-            print(f"Contenu du fichier téléchargé:\n{f.read()}")
+            print(f"Downloaded file content:\n{f.read()}")
 except Exception as e:
-    print(f"✗ Erreur: {e}")
+    print(f"✗ Error: {e}")
 
-print("\n🔟 Statistiques du fichier...")
+print("\n🔟 Getting file statistics...")
 try:
     result = ipython.run_line_magic('hdfs', 'stat /test_webhdfs/test.txt')
-    print("✓ Stat réussi")
+    print("✓ Stat successful")
 except Exception as e:
-    print(f"✗ Erreur: {e}")
+    print(f"✗ Error: {e}")
 
 print("\n" + "=" * 60)
-print("Tests terminés!")
+print("Tests completed!")
 print("=" * 60)
