@@ -1,0 +1,23 @@
+# Include documentation and license
+include README.md
+include LICENSE
+include ROADMAP.md
+
+# Include package data
+recursive-include webhdfsmagic *.py
+
+# Exclude development and temporary files
+exclude .gitignore
+exclude pyproject.toml
+exclude requirements.txt
+recursive-exclude tests *
+recursive-exclude demo *
+recursive-exclude scripts *
+recursive-exclude examples *.csv
+recursive-exclude examples *.py
+exclude examples/test_upload_fix.py
+recursive-exclude examples downloads
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude .DS_Store
+global-exclude *.ipynb_checkpoints

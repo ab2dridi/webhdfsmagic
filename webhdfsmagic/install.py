@@ -13,45 +13,43 @@ def get_ipython_startup_dir():
     return startup_dir
 
 
-def install_config():
+def install_autoload():
     """Install IPython startup script to auto-load webhdfsmagic."""
-    # Get destination directory
-    startup_dir = Path(get_ipython_startup_dir())
-    startup_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        # Get destination directory
+        startup_dir = Path(get_ipython_startup_dir())
+        startup_dir.mkdir(parents=True, exist_ok=True)
 
-    # Destination startup script
-    dest_script = startup_dir / "00-webhdfsmagic.py"
+        # Destination startup script
+        dest_script = startup_dir / "00-webhdfsmagic.py"
 
-    # Startup script content
-    script_content = """# Auto-load webhdfsmagic extension
+        # Startup script content
+        script_content = """# Auto-load webhdfsmagic extension
 try:
     get_ipython().extension_manager.load_extension("webhdfsmagic")
-except Exception as e:
-    print(f"Warning: Could not auto-load webhdfsmagic: {e}")
+except Exception:
+    pass  # Silently fail if not in IPython/Jupyter
 """
 
-    # Check if script already exists
-    if dest_script.exists():
-        with open(dest_script) as f:
-            content = f.read()
+        # Always write/overwrite to ensure latest version
+        with open(dest_script, "w") as f:
+            f.write(script_content)
 
-        if "webhdfsmagic" in content:
-            print("✓ webhdfsmagic already configured in IPython startup")
-            return True
-
-    # Create startup script
-    with open(dest_script, "w") as f:
-        f.write(script_content)
-    print(f"✓ Created IPython startup script: {dest_script}")
-
-    return True
+        return True
+    except Exception as e:
+        # Don't fail pip install if this doesn't work
+        # but we can log for debugging
+        import sys
+        if hasattr(sys, 'stderr'):
+            print(f"Note: Could not install autoload script ({e})", file=sys.stderr)
+        return False
 
 
 def main():
-    """Main installation function."""
+    """Main installation function (for CLI command)."""
     print("Installing webhdfsmagic auto-load configuration...")
 
-    if install_config():
+    if install_autoload():
         print("\n✓ Installation complete!")
         print("  webhdfsmagic will now load automatically in Jupyter notebooks")
         print("  and IPython sessions.")

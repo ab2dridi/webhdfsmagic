@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<topology>
+    <gateway>
+        <provider>
+            <role>authentication</role>
+            <name>Anonymous</name>
+            <enabled>true</enabled>
+        </provider>
+        <provider>
+            <role>identity-assertion</role>
+            <name>Default</name>
+            <enabled>true</enabled>
+        </provider>
+    </gateway>
+
+    <service>
+        <role>WEBHDFS</role>
+        <url>http://namenode:9870/webhdfs</url>
+    </service>
+</topology>

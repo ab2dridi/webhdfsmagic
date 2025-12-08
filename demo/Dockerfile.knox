@@ -1,0 +1,32 @@
+FROM eclipse-temurin:8-jre
+
+# Variables d'environnement
+ENV KNOX_VERSION=1.6.1
+ENV KNOX_HOME=/opt/knox
+ENV PATH=$PATH:$KNOX_HOME/bin
+
+# Installation des dépendances
+RUN apt-get update && apt-get install -y \
+    wget \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+# Téléchargement et installation de Knox
+RUN wget -q https://archive.apache.org/dist/knox/${KNOX_VERSION}/knox-${KNOX_VERSION}.tar.gz \
+    && tar -xzf knox-${KNOX_VERSION}.tar.gz -C /opt \
+    && mv /opt/knox-${KNOX_VERSION} ${KNOX_HOME} \
+    && rm knox-${KNOX_VERSION}.tar.gz
+
+# Création des répertoires nécessaires
+RUN mkdir -p ${KNOX_HOME}/conf/topologies \
+    && mkdir -p ${KNOX_HOME}/data/security/keystores
+
+# Script d'initialisation
+COPY knox-init.sh /knox-init.sh
+RUN chmod +x /knox-init.sh
+
+WORKDIR ${KNOX_HOME}
+
+EXPOSE 8080 8443
+
+CMD ["/knox-init.sh"]
