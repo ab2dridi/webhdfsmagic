@@ -23,19 +23,21 @@ def _setup_autoload():
 
 # Run setup automatically on import
 try:
-    import os
     from pathlib import Path
 
     # Check if startup script exists (better indicator than marker file)
-    ipython_startup = Path.home() / ".ipython" / "profile_default" / "startup" / "00-webhdfsmagic.py"
-    
+    ipython_startup = (
+        Path.home() / ".ipython" / "profile_default" / "startup" / "00-webhdfsmagic.py"
+    )
+
     if not ipython_startup.exists():
         # Startup script doesn't exist, try to create it
         _setup_autoload()
-        
+
         # Create marker file to track that we attempted installation
         marker_file = Path.home() / ".webhdfsmagic" / ".installed"
         marker_file.parent.mkdir(parents=True, exist_ok=True)
         marker_file.touch()
 except Exception:
     pass  # Don't break imports if setup fails
+
