@@ -1,6 +1,11 @@
 ![Version](https://img.shields.io/badge/version-0.0.3-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Tests](https://img.shields.io/badge/tests-249%20passed-success.svg)
+![Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)
+![Code style](https://img.shields.io/badge/code%20style-ruff-000000.svg)
+![Status](https://img.shields.io/badge/status-stable-green.svg)
+![Maintained](https://img.shields.io/badge/maintained-yes-green.svg)
 
 # webhdfsmagic
 
