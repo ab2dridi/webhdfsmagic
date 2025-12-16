@@ -94,7 +94,9 @@ def test_cat_n_option_before_path(magics, capsys):
         magics.hdfs("cat -n 10 /test/file.txt")
         captured = capsys.readouterr()
         assert "file content" in captured.out
-        magics.cat_cmd.execute.assert_called_once_with("/test/file.txt", 10, format_type=None, raw=False)
+        magics.cat_cmd.execute.assert_called_once_with(
+            "/test/file.txt", 10, format_type=None, raw=False
+        )
 
 
 def test_cat_n_option_after_path(magics, capsys):
@@ -103,7 +105,9 @@ def test_cat_n_option_after_path(magics, capsys):
         magics.hdfs("cat /test/file.txt -n 20")
         captured = capsys.readouterr()
         assert "file content" in captured.out
-        magics.cat_cmd.execute.assert_called_once_with("/test/file.txt", 20, format_type=None, raw=False)
+        magics.cat_cmd.execute.assert_called_once_with(
+            "/test/file.txt", 20, format_type=None, raw=False
+        )
 
 
 def test_cat_no_n_option(magics, capsys):
@@ -112,7 +116,9 @@ def test_cat_no_n_option(magics, capsys):
         magics.hdfs("cat /test/file.txt")
         captured = capsys.readouterr()
         assert "file content" in captured.out
-        magics.cat_cmd.execute.assert_called_once_with("/test/file.txt", 100, format_type=None, raw=False)
+        magics.cat_cmd.execute.assert_called_once_with(
+            "/test/file.txt", 100, format_type=None, raw=False
+        )
 
 
 def test_chmod_without_recursive(magics):
@@ -381,3 +387,36 @@ def test_cat_no_file_path_after_parsing(magics):
     result = magics.hdfs("cat -n 10")
     assert "Usage:" in result
     assert "cat" in result
+
+
+# ============================================================================
+# ADDITIONAL EDGE CASES FOR COVERAGE
+# ============================================================================
+
+
+class TestMagicsEdgeCasesForCoverage:
+    """Additional edge case tests for complete coverage."""
+
+    def test_cat_usage_message_return(self, magics_instance):
+        """Test that cat returns usage message without arguments."""
+        result = magics_instance.hdfs("cat")
+        assert result is not None
+        assert "Usage" in str(result) or "Error" in str(result)
+
+    def test_cat_print_output_path(self, magics_instance, monkeypatch, capsys):
+        """Test cat print output path for normal execution."""
+        from unittest.mock import MagicMock
+
+        import requests
+
+        fake_response = MagicMock()
+        fake_response.content = b"test content"
+        fake_response.status_code = 200
+
+        monkeypatch.setattr(
+            requests, "get", lambda url, auth, verify, allow_redirects=True: fake_response
+        )
+
+        magics_instance.hdfs("cat /test.txt --raw")
+        captured = capsys.readouterr()
+        assert captured.out != ""

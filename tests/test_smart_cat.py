@@ -112,7 +112,7 @@ class TestCatCommandCSVFormatting:
         mock_get.return_value = mock_response
 
         result = cat_command.execute("/data/test.csv")
-        
+
         assert "name" in result
         assert "age" in result
         assert "city" in result
@@ -130,7 +130,7 @@ class TestCatCommandCSVFormatting:
         mock_get.return_value = mock_response
 
         result = cat_command.execute("/data/test.csv", num_lines=2)
-        
+
         # Should show only first 2 rows
         assert "1" in result
         assert "2" in result
@@ -149,7 +149,7 @@ class TestCatCommandCSVFormatting:
         mock_get.return_value = mock_response
 
         result = cat_command.execute("/data/test.csv", raw=True)
-        
+
         # Should be raw CSV text, not formatted table
         assert result == "name,age\nJohn,30"
 
@@ -164,7 +164,7 @@ class TestCatCommandCSVFormatting:
         mock_get.return_value = mock_response
 
         result = cat_command.execute("/data/test.csv", format_type="pandas")
-        
+
         # Should contain DataFrame string representation
         assert "name" in result
         assert "age" in result
@@ -189,7 +189,7 @@ class TestCatCommandParquetFormatting:
         mock_get.return_value = mock_response
 
         result = cat_command.execute("/data/test.parquet")
-        
+
         assert "name" in result
         assert "age" in result
         assert "Alice" in result
@@ -213,7 +213,7 @@ class TestCatCommandParquetFormatting:
         mock_get.return_value = mock_response
 
         result = cat_command.execute("/data/test.parquet", num_lines=2)
-        
+
         # Should show only first 2 rows
         assert "1" in result
         assert "2" in result
@@ -233,7 +233,7 @@ class TestCatCommandParquetFormatting:
         mock_get.return_value = mock_response
 
         result = cat_command.execute("/data/test.parquet", format_type="pandas")
-        
+
         # Should contain DataFrame string representation
         assert "name" in result
         assert "age" in result
@@ -253,7 +253,7 @@ class TestCatCommandRawFormatting:
         mock_get.return_value = mock_response
 
         result = cat_command.execute("/data/test.txt")
-        
+
         assert result == "This is a plain text file.\nWith multiple lines.\nLine 3."
 
     @patch("requests.get")
@@ -267,7 +267,7 @@ class TestCatCommandRawFormatting:
         mock_get.return_value = mock_response
 
         result = cat_command.execute("/data/test.txt", num_lines=3)
-        
+
         assert result == "Line 1\nLine 2\nLine 3"
 
 
@@ -285,7 +285,7 @@ class TestCatCommandErrorHandling:
         mock_get.return_value = mock_response
 
         result = cat_command.execute("/data/bad.csv")
-        
+
         # Should still return something (either formatted or raw)
         assert result is not None
         assert len(result) > 0
@@ -299,6 +299,39 @@ class TestCatCommandErrorHandling:
         mock_get.return_value = mock_response
 
         result = cat_command.execute("/data/nonexistent.csv")
-        
+
         assert "Error" in result
         assert "File not found" in result
+
+
+# ============================================================================
+# EDGE CASES FOR COMPLETE COVERAGE
+# ============================================================================
+
+
+class TestCatEdgeCasesForCoverage:
+    """Edge case tests for complete code coverage."""
+
+    def test_csv_detection_with_newline(self):
+        """Test CSV detection when newline exists in content."""
+        from unittest.mock import Mock
+
+        from webhdfsmagic.commands.file_ops import CatCommand
+        mock_client = Mock()
+        cat_cmd = CatCommand(mock_client)
+
+        content = b"name,age\nJohn,30\nJane,25"
+        file_type = cat_cmd._detect_file_type("/data/file.csv", content)
+        assert file_type == "csv"
+
+    def test_csv_detection_without_newline(self):
+        """Test CSV detection without newline (single line)."""
+        from unittest.mock import Mock
+
+        from webhdfsmagic.commands.file_ops import CatCommand
+        mock_client = Mock()
+        cat_cmd = CatCommand(mock_client)
+
+        content = b"name,age,city,country"
+        file_type = cat_cmd._detect_file_type("/data/file.csv", content)
+        assert file_type == "csv"

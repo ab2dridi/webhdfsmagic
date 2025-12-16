@@ -237,3 +237,33 @@ def test_execute_with_additional_params(mock_request, client):
     call_kwargs = mock_request.call_args.kwargs
     assert call_kwargs["params"]["permission"] == "755"
     assert call_kwargs["params"]["custom_param"] == "value"
+
+
+# ============================================================================
+# EDGE CASES FOR COMPLETE COVERAGE
+# ============================================================================
+
+
+class TestClientExceptionHandling:
+    """Test generic exception handling in client."""
+
+    def test_execute_generic_exception(self):
+        """Test client handles non-HTTPError exceptions."""
+        from unittest.mock import patch
+
+        import pytest
+
+        from webhdfsmagic.client import WebHDFSClient
+
+        client = WebHDFSClient(
+            knox_url="http://localhost:8080/gateway/default",
+            webhdfs_api="/webhdfs/v1",
+            auth_user="testuser",
+            auth_password="testpass"
+        )
+
+        with patch("webhdfsmagic.client.requests.request") as mock_request:
+            mock_request.side_effect = ValueError("Connection error")
+
+            with pytest.raises(ValueError):
+                client.execute("GET", "LISTSTATUS", "/test")
