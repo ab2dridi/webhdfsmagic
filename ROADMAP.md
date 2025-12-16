@@ -2,6 +2,8 @@
 
 ## Current Status
 
+**Version 0.0.3** - Smart cat feature with CSV/Parquet support
+
 **Version 0.0.2** - 8 commands fully implemented and tested:
 - ✅ `ls` - List files and directories
 - ✅ `mkdir` - Create directories (with parent creation)
