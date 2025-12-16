@@ -2,7 +2,8 @@
 
 import os
 import tempfile
-from unittest.mock import MagicMock
+from unittest import mock
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
@@ -784,3 +785,163 @@ class TestBaseCommandMethods:
 
         assert "Error:" in result
         assert "Test error" in result
+
+
+class TestFileOpsEdgeCases:
+    """Tests for edge cases and error paths in file operations."""
+
+    def test_base_command_execute_not_implemented(self):
+        """Test that execute() raises NotImplementedError in base class."""
+        from webhdfsmagic.commands.base import BaseCommand
+
+        class DummyCommand(BaseCommand):
+            """Dummy command that doesn't implement execute."""
+
+            def __init__(self, client):
+                super().__init__(client)
+
+            def execute(self, *args, **kwargs):
+                # Call parent execute which should raise NotImplementedError
+                return super().execute(*args, **kwargs)
+
+        cmd = DummyCommand(mock.MagicMock())
+        with pytest.raises(NotImplementedError):
+            cmd.execute()
+
+    def test_detect_file_type_exception(self):
+        """Test _detect_file_type handles exceptions in content analysis."""
+        from webhdfsmagic.commands.file_ops import CatCommand
+
+        client = mock.MagicMock()
+        cmd = CatCommand(client)
+
+        # Mock content that will raise exception when accessing [:4]
+        mock_content = mock.MagicMock()
+        mock_content.__getitem__.side_effect = Exception("Content access error")
+
+        # Test with file WITHOUT extension so it goes to content detection
+        result = cmd._detect_file_type("/test/file_no_extension", mock_content)
+        # Should handle exception and return 'text'
+        assert result == 'text'  # Covers lines 123-124
+
+    def test_download_multiple_no_matches(self):
+        """Test _download_multiple when no files match pattern."""
+        import pandas as pd
+
+        from webhdfsmagic.commands.file_ops import GetCommand
+
+        client = mock.MagicMock()
+        client.list_status.return_value = []
+
+        cmd = GetCommand(client)
+
+        # Create empty DataFrame to simulate no matches
+        empty_df = pd.DataFrame(columns=["name", "type"])
+
+        with patch('pathlib.Path.mkdir'):
+            # Pass all required arguments, format_ls_func returns empty DataFrame
+            result = cmd._download_multiple("/test/*.txt", "/tmp/", "/tmp", lambda x: empty_df)
+            assert "No file" in result  # Covers line 328
+
+    def test_download_single_exception_handling(self):
+        """Test _download_single handles exceptions properly."""
+        from webhdfsmagic.commands.file_ops import GetCommand
+
+        client = mock.MagicMock()
+        cmd = GetCommand(client)
+
+        with patch('requests.get', side_effect=Exception("Network error")):
+            with patch('pathlib.Path.mkdir'):
+                # Pass all required arguments
+                result = cmd._download_single("/test/file.txt", "/tmp/file.txt", "/tmp/file.txt")
+                assert "Error" in result or "Failed" in result
+
+    def test_get_handle_redirect_docker_hostname(self):
+        """Test GetCommand handles Docker internal hostname in redirect."""
+        from webhdfsmagic.commands.file_ops import GetCommand
+
+        client = mock.MagicMock()
+        client.auth_user = "testuser"
+        cmd = GetCommand(client)
+
+        # Mock response with Docker internal hostname (12-char hex)
+        response = mock.MagicMock()
+        response.headers = {"Location": "http://a1b2c3d4e5f6:50075/webhdfs/v1/test/file.txt?op=OPEN"}
+
+        with patch('requests.get') as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.content = b"test"
+
+            cmd._handle_redirect(response)
+
+            # Verify the redirect was called and hostname was fixed
+            assert mock_get.called
+            call_url = mock_get.call_args[0][0] if mock_get.call_args else ""
+            assert "localhost" in call_url  # Covers line 258
+
+    def test_put_no_local_files_found(self):
+        """Test PutCommand when no local files match pattern."""
+        from webhdfsmagic.commands.file_ops import PutCommand
+
+        client = mock.MagicMock()
+        cmd = PutCommand(client)
+
+        with patch('glob.glob', return_value=[]):
+            result = cmd.execute("/nonexistent/*.txt", "/test/")
+            assert "No files match" in result or "No local files" in result
+
+    def test_put_hdfs_dest_not_ending_with_slash(self):
+        """Test PutCommand with hdfs_dest not ending with / or ."""
+
+        from webhdfsmagic.commands.file_ops import PutCommand
+
+        client = mock.MagicMock()
+        client.knox_url = "http://localhost:8080/gateway/default"
+        client.webhdfs_api = "/webhdfs/v1"
+        client.auth_user = "test"
+        client.auth_password = "password"
+        client.verify_ssl = False
+
+        cmd = PutCommand(client)
+
+        # Mock file that exists
+        with patch('glob.glob', return_value=["/tmp/test.txt"]):
+            with patch('os.path.basename', return_value='test.txt'):
+                with patch('builtins.open', mock.mock_open(read_data=b'test')):
+                    # Mock 307 redirect then 201 success
+                    with patch('requests.put') as mock_put:
+                        mock_put.side_effect = [
+                            mock.MagicMock(status_code=307, headers={"Location": "http://datanode:50075/webhdfs/v1/dest?op=CREATE"}),
+                            mock.MagicMock(status_code=201)
+                        ]
+
+                        result = cmd.execute("/tmp/test.txt", "/dest")
+                        # Covers line 531-532 (hdfs_dest not ending with / or .)
+                        assert isinstance(result, str)
+
+    def test_get_local_dest_not_ending_with_slash_or_dot(self):
+        """Test GetCommand _download_single with local_dest not ending with / or ."""
+        from webhdfsmagic.commands.file_ops import GetCommand
+
+        client = mock.MagicMock()
+        client.knox_url = "http://localhost:8080"
+        client.webhdfs_api = "/webhdfs/v1"
+        client.auth_user = "test"
+        client.auth_password = "password"
+        client.verify_ssl = False
+
+        cmd = GetCommand(client)
+
+        # Mock 307 redirect then 200 success
+        with patch('requests.get') as mock_get:
+            mock_get.side_effect = [
+                mock.MagicMock(status_code=307, headers={"Location": "http://datanode:50075/webhdfs/v1/test.txt?op=OPEN"}),
+                mock.MagicMock(status_code=200, content=b"test data")
+            ]
+
+            with patch('pathlib.Path.mkdir'):
+                with patch('pathlib.Path.write_bytes'):
+                    # local_dest_expanded does NOT end with / or .
+                    result = cmd._download_single("/test.txt", "/tmp/output", "/tmp/output")
+                    # Covers lines 375-378 (else branch when NOT ending with / or .)
+                    assert "downloaded" in result.lower()

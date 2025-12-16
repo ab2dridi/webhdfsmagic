@@ -53,14 +53,14 @@ class CatCommand(BaseCommand):
         try:
             # Fetch file content
             content = self._fetch_content(file_path, allow_redirects)
-            
+
             # If raw mode requested, return raw content
             if raw or format_type == 'raw':
                 return self._format_raw_content(content, num_lines)
-            
+
             # Detect file type and apply smart formatting
             file_type = self._detect_file_type(file_path, content)
-            
+
             if file_type == 'csv':
                 return self._format_csv(content, num_lines, format_type)
             elif file_type == 'parquet':
@@ -68,11 +68,11 @@ class CatCommand(BaseCommand):
             else:
                 # Default to raw display for non-structured files
                 return self._format_raw_content(content, num_lines)
-                
+
         except Exception as e:
             tb = traceback.format_exc()
             return f"Error: {str(e)}\nTraceback:\n{tb}"
-    
+
     def _fetch_content(self, file_path: str, allow_redirects: bool) -> bytes:
         """Fetch raw file content from HDFS."""
         url = (
@@ -92,11 +92,11 @@ class CatCommand(BaseCommand):
 
         response.raise_for_status()
         return response.content
-    
+
     def _detect_file_type(self, file_path: str, content: bytes) -> str:
         """Detect file type from extension and content."""
         file_path_lower = file_path.lower()
-        
+
         # Check file extension
         if file_path_lower.endswith('.csv'):
             return 'csv'
@@ -106,13 +106,13 @@ class CatCommand(BaseCommand):
             return 'parquet'
         elif file_path_lower.endswith('.json'):
             return 'json'
-        
+
         # Try to detect from content (first few bytes)
         try:
             # Check for Parquet magic number
             if content[:4] == b'PAR1':
                 return 'parquet'
-            
+
             # Try to decode as text and check for CSV patterns
             text_sample = content[:1000].decode('utf-8', errors='ignore')
             if ',' in text_sample or '\t' in text_sample:
@@ -122,28 +122,28 @@ class CatCommand(BaseCommand):
                     return 'csv'
         except Exception:
             pass
-        
+
         return 'text'
-    
+
     def _format_raw_content(self, content: bytes, num_lines: int) -> str:
         """Format content as raw text."""
         text = content.decode("utf-8", errors="replace")
         lines = text.splitlines()
-        
+
         if num_lines == -1:
             return "\n".join(lines)
         else:
             return "\n".join(lines[:num_lines])
-    
+
     def _format_csv(self, content: bytes, num_lines: int, format_type: Optional[str]) -> str:
         """Format CSV content as a table."""
         try:
             # Decode content
             text = content.decode('utf-8', errors='replace')
-            
+
             # Try to infer delimiter
             delimiter = self._infer_delimiter(text)
-            
+
             # Parse CSV into DataFrame
             df = pd.read_csv(
                 io.StringIO(text),
@@ -151,18 +151,18 @@ class CatCommand(BaseCommand):
                 on_bad_lines='skip',
                 encoding_errors='replace'
             )
-            
+
             # Limit rows if requested
             if num_lines != -1 and len(df) > num_lines:
                 df = df.head(num_lines)
                 truncated = True
             else:
                 truncated = False
-            
+
             # Return as pandas DataFrame if requested
             if format_type == 'pandas':
                 return str(df)
-            
+
             # Format as table
             table = tabulate(
                 df,
@@ -171,37 +171,39 @@ class CatCommand(BaseCommand):
                 showindex=False,
                 maxcolwidths=50
             )
-            
+
             # Add truncation notice if needed
             if truncated:
-                table += f"\n\n... (showing first {num_lines} of {len(df) + (len(content.decode('utf-8', errors='replace').splitlines()) - len(df))} rows)"
-            
+                total_lines = len(content.decode('utf-8', errors='replace').splitlines())
+                table += f"\n\n... (showing first {num_lines} of {total_lines} rows)"
+
             return table
-            
+
         except Exception as e:
             # Fallback to raw display if parsing fails
-            return f"[CSV parsing failed: {str(e)}]\n\n" + self._format_raw_content(content, num_lines)
-    
+            error_msg = f"[CSV parsing failed: {str(e)}]\n\n"
+            return error_msg + self._format_raw_content(content, num_lines)
+
     def _format_parquet(self, content: bytes, num_lines: int, format_type: Optional[str]) -> str:
         """Format Parquet content as a table."""
         try:
             import pyarrow.parquet as pq
-            
+
             # Read Parquet file from bytes
             parquet_file = pq.read_table(io.BytesIO(content))
             df = parquet_file.to_pandas()
-            
+
             # Limit rows if requested
             if num_lines != -1 and len(df) > num_lines:
                 df = df.head(num_lines)
                 truncated = True
             else:
                 truncated = False
-            
+
             # Return as pandas DataFrame if requested
             if format_type == 'pandas':
                 return str(df)
-            
+
             # Format as table
             table = tabulate(
                 df,
@@ -210,28 +212,28 @@ class CatCommand(BaseCommand):
                 showindex=False,
                 maxcolwidths=50
             )
-            
+
             # Add truncation notice if needed
             if truncated:
                 total_rows = len(parquet_file)
                 table += f"\n\n... (showing first {num_lines} of {total_rows} rows)"
-            
+
             return table
-            
+
         except Exception as e:
             # Fallback error message
-            return f"[Parquet parsing failed: {str(e)}]\n\nRaw content not available for binary files."
-    
+            error_msg = f"[Parquet parsing failed: {str(e)}]\n\n"
+            return error_msg + "Raw content not available for binary files."
+
     def _infer_delimiter(self, text: str) -> str:
         """Infer the delimiter used in CSV file."""
         # Get first few lines as sample
         lines = text.split('\n')[:5]
-        sample = '\n'.join(lines)
-        
+
         # Count common delimiters
         delimiters = [',', '\t', ';', '|']
         counts = {}
-        
+
         for delimiter in delimiters:
             # Count occurrences in each line
             line_counts = [line.count(delimiter) for line in lines if line.strip()]
@@ -239,11 +241,11 @@ class CatCommand(BaseCommand):
                 # Check if delimiter appears consistently
                 if len(set(line_counts)) == 1 and line_counts[0] > 0:
                     counts[delimiter] = line_counts[0]
-        
+
         # Return delimiter with highest count
         if counts:
             return max(counts, key=counts.get)
-        
+
         # Default to comma
         return ','
 

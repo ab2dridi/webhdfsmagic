@@ -138,3 +138,40 @@ def test_logger_levels():
     assert "Info message" in content
     assert "Warning message" in content
     assert "Error message" in content
+
+
+def test_logger_handler_check_on_reinit():
+    """Test that logger prevents duplicate handlers when reinitializing."""
+    from webhdfsmagic.logger import WebHDFSLogger
+
+    # Get first instance
+    logger1 = WebHDFSLogger()
+    handler_count_1 = len(logger1.logger.handlers)
+
+    # Get second instance (should reuse same logger)
+    logger2 = WebHDFSLogger()
+    handler_count_2 = len(logger2.logger.handlers)
+
+    # Should have same number of handlers (no duplicates)
+    assert handler_count_2 == handler_count_1
+    assert logger1 is logger2  # Should be same singleton instance
+
+
+def test_log_http_request_with_auth():
+    """Test log_http_request with auth parameter in kwargs."""
+    logger = get_logger()
+
+    # This should trigger the kwargs logging path with auth masking
+    logger.log_http_request(
+        method="GET",
+        url="http://test.com/api",
+        operation="LISTSTATUS",
+        path="/test",
+        auth=("user", "password"),
+    )
+
+    log_file = Path.home() / ".webhdfsmagic" / "logs" / "webhdfsmagic.log"
+    content = log_file.read_text()
+    assert "HTTP Request: GET http://test.com/api" in content
+    # Auth should be masked with ***
+    assert "auth: (user, ***)" in content or "***" in content

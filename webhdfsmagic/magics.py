@@ -10,7 +10,7 @@ from typing import Any, Optional, Union
 
 import pandas as pd
 from IPython.core.magic import Magics, line_magic, magics_class
-from IPython.display import HTML, display
+from IPython.display import HTML
 from traitlets import TraitType, Unicode
 
 from .client import WebHDFSClient
@@ -287,8 +287,10 @@ class WebHDFSMagics(Magics):
                 if i + 1 >= len(args):
                     return "Error: --format option requires a type (csv, parquet, pandas, raw)."
                 format_type = args[i + 1]
-                if format_type not in ['csv', 'parquet', 'pandas', 'raw']:
-                    return f"Error: invalid format type '{format_type}'. Use: csv, parquet, pandas, or raw."
+                valid_formats = ['csv', 'parquet', 'pandas', 'raw']
+                if format_type not in valid_formats:
+                    formats_str = ', '.join(valid_formats)
+                    return f"Error: invalid format type '{format_type}'. Use: {formats_str}."
                 i += 2
             elif args[i] == "--raw":
                 raw = True
@@ -303,7 +305,7 @@ class WebHDFSMagics(Magics):
             return "Usage: %hdfs cat <file> [-n <lines>] [--format <type>] [--raw]"
 
         result = self.cat_cmd.execute(file_path, num_lines, format_type=format_type, raw=raw)
-        
+
         # If result starts with "Error:", return it so it can be checked in tests
         # Otherwise print it for nice display in notebooks
         if result.startswith("Error:"):
