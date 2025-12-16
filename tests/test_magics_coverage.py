@@ -60,7 +60,7 @@ def test_setconfig_valid_json(magics):
     assert magics.auth_user == config["username"]
 
 
-def test_cat_no_args(magics):
+def test_cat_no_args(magics, capsys):
     """Test cat command without arguments."""
     result = magics.hdfs("cat")
     assert "Usage:" in result
@@ -88,28 +88,31 @@ def test_cat_multiple_files(magics):
     assert "multiple file paths" in result
 
 
-def test_cat_n_option_before_path(magics):
+def test_cat_n_option_before_path(magics, capsys):
     """Test cat command with -n option before file path."""
     with patch.object(magics.cat_cmd, "execute", return_value="file content"):
-        result = magics.hdfs("cat -n 10 /test/file.txt")
-        assert "file content" in result
-        magics.cat_cmd.execute.assert_called_once_with("/test/file.txt", 10)
+        magics.hdfs("cat -n 10 /test/file.txt")
+        captured = capsys.readouterr()
+        assert "file content" in captured.out
+        magics.cat_cmd.execute.assert_called_once_with("/test/file.txt", 10, format_type=None, raw=False)
 
 
-def test_cat_n_option_after_path(magics):
+def test_cat_n_option_after_path(magics, capsys):
     """Test cat command with -n option after file path."""
     with patch.object(magics.cat_cmd, "execute", return_value="file content"):
-        result = magics.hdfs("cat /test/file.txt -n 20")
-        assert "file content" in result
-        magics.cat_cmd.execute.assert_called_once_with("/test/file.txt", 20)
+        magics.hdfs("cat /test/file.txt -n 20")
+        captured = capsys.readouterr()
+        assert "file content" in captured.out
+        magics.cat_cmd.execute.assert_called_once_with("/test/file.txt", 20, format_type=None, raw=False)
 
 
-def test_cat_no_n_option(magics):
+def test_cat_no_n_option(magics, capsys):
     """Test cat command without -n option uses default 100 lines."""
     with patch.object(magics.cat_cmd, "execute", return_value="file content"):
-        result = magics.hdfs("cat /test/file.txt")
-        assert "file content" in result
-        magics.cat_cmd.execute.assert_called_once_with("/test/file.txt", 100)
+        magics.hdfs("cat /test/file.txt")
+        captured = capsys.readouterr()
+        assert "file content" in captured.out
+        magics.cat_cmd.execute.assert_called_once_with("/test/file.txt", 100, format_type=None, raw=False)
 
 
 def test_chmod_without_recursive(magics):

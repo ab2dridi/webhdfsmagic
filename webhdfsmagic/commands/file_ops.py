@@ -2,73 +2,250 @@
 File operation commands for WebHDFS.
 
 This module implements commands for reading, downloading, and uploading files:
-- cat: Display file content
+- cat: Display file content (with smart formatting for CSV/Parquet)
 - get: Download files from HDFS
 - put: Upload files to HDFS
 """
 
 import fnmatch
 import glob
+import io
 import os
 import re
 import traceback
+from typing import Optional
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
+import pandas as pd
 import requests
+from tabulate import tabulate
 
 from .base import BaseCommand
 
 
 class CatCommand(BaseCommand):
-    """Display file content from HDFS."""
+    """Display file content from HDFS with smart formatting for structured files."""
 
     def execute(
         self,
         file_path: str,
         num_lines: int = 100,
-        allow_redirects: bool = False
+        allow_redirects: bool = False,
+        format_type: Optional[str] = None,
+        raw: bool = False
     ) -> str:
         """
-        Read and display file content.
+        Read and display file content with intelligent formatting.
 
         Args:
             file_path: HDFS file path
             num_lines: Number of lines to display (-1 for all)
             allow_redirects: Whether to follow redirects automatically
+            format_type: Force specific format ('csv', 'parquet', 'pandas', 'raw')
+            raw: If True, display raw content without formatting
 
         Returns:
-            File content as string
+            File content as string or formatted table
 
         Raises:
             Exception: On HTTP or processing errors
         """
         try:
-            url = (
-                f"{self.client.knox_url}{self.client.webhdfs_api}"
-                f"{file_path}?op=OPEN"
-            )
-            response = requests.get(
-                url,
-                auth=(self.client.auth_user, self.client.auth_password),
-                verify=self.client.verify_ssl,
-                allow_redirects=allow_redirects,
-            )
-
-            # Handle redirect manually to fix DataNode hostname
-            if response.status_code == 307:
-                response = self._handle_redirect(response)
-
-            response.raise_for_status()
-            content = response.content.decode("utf-8", errors="replace")
-            lines = content.splitlines()
-
-            if num_lines == -1:
-                return "\n".join(lines)
+            # Fetch file content
+            content = self._fetch_content(file_path, allow_redirects)
+            
+            # If raw mode requested, return raw content
+            if raw or format_type == 'raw':
+                return self._format_raw_content(content, num_lines)
+            
+            # Detect file type and apply smart formatting
+            file_type = self._detect_file_type(file_path, content)
+            
+            if file_type == 'csv':
+                return self._format_csv(content, num_lines, format_type)
+            elif file_type == 'parquet':
+                return self._format_parquet(content, num_lines, format_type)
             else:
-                return "\n".join(lines[:num_lines])
+                # Default to raw display for non-structured files
+                return self._format_raw_content(content, num_lines)
+                
         except Exception as e:
             tb = traceback.format_exc()
             return f"Error: {str(e)}\nTraceback:\n{tb}"
+    
+    def _fetch_content(self, file_path: str, allow_redirects: bool) -> bytes:
+        """Fetch raw file content from HDFS."""
+        url = (
+            f"{self.client.knox_url}{self.client.webhdfs_api}"
+            f"{file_path}?op=OPEN"
+        )
+        response = requests.get(
+            url,
+            auth=(self.client.auth_user, self.client.auth_password),
+            verify=self.client.verify_ssl,
+            allow_redirects=allow_redirects,
+        )
+
+        # Handle redirect manually to fix DataNode hostname
+        if response.status_code == 307:
+            response = self._handle_redirect(response)
+
+        response.raise_for_status()
+        return response.content
+    
+    def _detect_file_type(self, file_path: str, content: bytes) -> str:
+        """Detect file type from extension and content."""
+        file_path_lower = file_path.lower()
+        
+        # Check file extension
+        if file_path_lower.endswith('.csv'):
+            return 'csv'
+        elif file_path_lower.endswith(('.tsv', '.tab')):
+            return 'csv'  # TSV is handled as CSV with different delimiter
+        elif file_path_lower.endswith('.parquet'):
+            return 'parquet'
+        elif file_path_lower.endswith('.json'):
+            return 'json'
+        
+        # Try to detect from content (first few bytes)
+        try:
+            # Check for Parquet magic number
+            if content[:4] == b'PAR1':
+                return 'parquet'
+            
+            # Try to decode as text and check for CSV patterns
+            text_sample = content[:1000].decode('utf-8', errors='ignore')
+            if ',' in text_sample or '\t' in text_sample:
+                # Count delimiters in first line
+                first_line = text_sample.split('\n')[0] if '\n' in text_sample else text_sample
+                if first_line.count(',') >= 1 or first_line.count('\t') >= 1:
+                    return 'csv'
+        except Exception:
+            pass
+        
+        return 'text'
+    
+    def _format_raw_content(self, content: bytes, num_lines: int) -> str:
+        """Format content as raw text."""
+        text = content.decode("utf-8", errors="replace")
+        lines = text.splitlines()
+        
+        if num_lines == -1:
+            return "\n".join(lines)
+        else:
+            return "\n".join(lines[:num_lines])
+    
+    def _format_csv(self, content: bytes, num_lines: int, format_type: Optional[str]) -> str:
+        """Format CSV content as a table."""
+        try:
+            # Decode content
+            text = content.decode('utf-8', errors='replace')
+            
+            # Try to infer delimiter
+            delimiter = self._infer_delimiter(text)
+            
+            # Parse CSV into DataFrame
+            df = pd.read_csv(
+                io.StringIO(text),
+                sep=delimiter,
+                on_bad_lines='skip',
+                encoding_errors='replace'
+            )
+            
+            # Limit rows if requested
+            if num_lines != -1 and len(df) > num_lines:
+                df = df.head(num_lines)
+                truncated = True
+            else:
+                truncated = False
+            
+            # Return as pandas DataFrame if requested
+            if format_type == 'pandas':
+                return str(df)
+            
+            # Format as table
+            table = tabulate(
+                df,
+                headers='keys',
+                tablefmt='grid',
+                showindex=False,
+                maxcolwidths=50
+            )
+            
+            # Add truncation notice if needed
+            if truncated:
+                table += f"\n\n... (showing first {num_lines} of {len(df) + (len(content.decode('utf-8', errors='replace').splitlines()) - len(df))} rows)"
+            
+            return table
+            
+        except Exception as e:
+            # Fallback to raw display if parsing fails
+            return f"[CSV parsing failed: {str(e)}]\n\n" + self._format_raw_content(content, num_lines)
+    
+    def _format_parquet(self, content: bytes, num_lines: int, format_type: Optional[str]) -> str:
+        """Format Parquet content as a table."""
+        try:
+            import pyarrow.parquet as pq
+            
+            # Read Parquet file from bytes
+            parquet_file = pq.read_table(io.BytesIO(content))
+            df = parquet_file.to_pandas()
+            
+            # Limit rows if requested
+            if num_lines != -1 and len(df) > num_lines:
+                df = df.head(num_lines)
+                truncated = True
+            else:
+                truncated = False
+            
+            # Return as pandas DataFrame if requested
+            if format_type == 'pandas':
+                return str(df)
+            
+            # Format as table
+            table = tabulate(
+                df,
+                headers='keys',
+                tablefmt='grid',
+                showindex=False,
+                maxcolwidths=50
+            )
+            
+            # Add truncation notice if needed
+            if truncated:
+                total_rows = len(parquet_file)
+                table += f"\n\n... (showing first {num_lines} of {total_rows} rows)"
+            
+            return table
+            
+        except Exception as e:
+            # Fallback error message
+            return f"[Parquet parsing failed: {str(e)}]\n\nRaw content not available for binary files."
+    
+    def _infer_delimiter(self, text: str) -> str:
+        """Infer the delimiter used in CSV file."""
+        # Get first few lines as sample
+        lines = text.split('\n')[:5]
+        sample = '\n'.join(lines)
+        
+        # Count common delimiters
+        delimiters = [',', '\t', ';', '|']
+        counts = {}
+        
+        for delimiter in delimiters:
+            # Count occurrences in each line
+            line_counts = [line.count(delimiter) for line in lines if line.strip()]
+            if line_counts:
+                # Check if delimiter appears consistently
+                if len(set(line_counts)) == 1 and line_counts[0] > 0:
+                    counts[delimiter] = line_counts[0]
+        
+        # Return delimiter with highest count
+        if counts:
+            return max(counts, key=counts.get)
+        
+        # Default to comma
+        return ','
 
     def _handle_redirect(self, response: requests.Response) -> requests.Response:
         """Handle HTTP 307 redirect and fix Docker internal hostnames."""

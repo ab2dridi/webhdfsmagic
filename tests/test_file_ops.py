@@ -7,7 +7,7 @@ import pandas as pd
 import requests
 
 
-def test_cat_default(monkeypatch, magics_instance):
+def test_cat_default(monkeypatch, magics_instance, capsys):
     """Test the cat command with the default 100 lines."""
     fake_content = "\n".join([f"line {i}" for i in range(150)])
     fake_response = MagicMock()
@@ -16,12 +16,13 @@ def test_cat_default(monkeypatch, magics_instance):
     monkeypatch.setattr(
         requests, "get", lambda url, auth, verify, allow_redirects=True: fake_response
     )
-    result = magics_instance.hdfs("cat /fake-file")
-    lines = result.splitlines()
+    magics_instance.hdfs("cat /fake-file")
+    captured = capsys.readouterr()
+    lines = captured.out.splitlines()
     assert len(lines) == 100
 
 
-def test_cat_full(monkeypatch, magics_instance):
+def test_cat_full(monkeypatch, magics_instance, capsys):
     """Test the cat command with '-n -1' to display the full file."""
     fake_content = "\n".join([f"line {i}" for i in range(50)])
     fake_response = MagicMock()
@@ -30,12 +31,13 @@ def test_cat_full(monkeypatch, magics_instance):
     monkeypatch.setattr(
         requests, "get", lambda url, auth, verify, allow_redirects=True: fake_response
     )
-    result = magics_instance.hdfs("cat /fake-file -n -1")
-    lines = result.splitlines()
+    magics_instance.hdfs("cat /fake-file -n -1")
+    captured = capsys.readouterr()
+    lines = captured.out.splitlines()
     assert len(lines) == 50
 
 
-def test_cat_with_n_option_after_path(monkeypatch, magics_instance):
+def test_cat_with_n_option_after_path(monkeypatch, magics_instance, capsys):
     """Test the cat command with syntax: %hdfs cat /path/to/file -n 5."""
     fake_content = "\n".join([f"line {i}" for i in range(20)])
     fake_response = MagicMock()
@@ -44,12 +46,13 @@ def test_cat_with_n_option_after_path(monkeypatch, magics_instance):
     monkeypatch.setattr(
         requests, "get", lambda url, auth, verify, allow_redirects=True: fake_response
     )
-    result = magics_instance.hdfs("cat /demo/data/customers.csv -n 5")
-    lines = result.splitlines()
+    magics_instance.hdfs("cat /demo/data/customers.csv -n 5 --raw")
+    captured = capsys.readouterr()
+    lines = captured.out.splitlines()
     assert len(lines) == 5
 
 
-def test_cat_with_n_option_before_path(monkeypatch, magics_instance):
+def test_cat_with_n_option_before_path(monkeypatch, magics_instance, capsys):
     """Test the cat command with syntax: %hdfs cat -n 5 /path/to/file."""
     fake_content = "\n".join([f"line {i}" for i in range(20)])
     fake_response = MagicMock()
@@ -58,12 +61,13 @@ def test_cat_with_n_option_before_path(monkeypatch, magics_instance):
     monkeypatch.setattr(
         requests, "get", lambda url, auth, verify, allow_redirects=True: fake_response
     )
-    result = magics_instance.hdfs("cat -n 5 /demo/data/customers.csv")
-    lines = result.splitlines()
+    magics_instance.hdfs("cat -n 5 /demo/data/customers.csv --raw")
+    captured = capsys.readouterr()
+    lines = captured.out.splitlines()
     assert len(lines) == 5
 
 
-def test_cat_with_n_option_different_values(monkeypatch, magics_instance):
+def test_cat_with_n_option_different_values(monkeypatch, magics_instance, capsys):
     """Test the cat command with different -n values for both syntaxes."""
     fake_content = "\n".join([f"line {i}" for i in range(50)])
     fake_response = MagicMock()
@@ -74,29 +78,31 @@ def test_cat_with_n_option_different_values(monkeypatch, magics_instance):
     )
 
     # Test with -n 10 after path
-    result = magics_instance.hdfs("cat /fake-file -n 10")
-    lines = result.splitlines()
+    magics_instance.hdfs("cat /fake-file -n 10")
+    captured = capsys.readouterr()
+    lines = captured.out.splitlines()
     assert len(lines) == 10
 
     # Test with -n 15 before path
-    result = magics_instance.hdfs("cat -n 15 /fake-file")
-    lines = result.splitlines()
+    magics_instance.hdfs("cat -n 15 /fake-file")
+    captured = capsys.readouterr()
+    lines = captured.out.splitlines()
     assert len(lines) == 15
 
 
-def test_cat_error_multiple_paths(magics_instance):
+def test_cat_error_multiple_paths(magics_instance, capsys):
     """Test that cat returns an error when multiple paths are provided."""
     result = magics_instance.hdfs("cat /path1 /path2 -n 5")
     assert "Error: multiple file paths specified" in result
 
 
-def test_cat_error_missing_n_value(magics_instance):
+def test_cat_error_missing_n_value(magics_instance, capsys):
     """Test that cat returns an error when -n is provided without a value."""
     result = magics_instance.hdfs("cat /fake-file -n")
     assert "Error: -n option requires a number argument" in result
 
 
-def test_cat_error_invalid_n_value(magics_instance):
+def test_cat_error_invalid_n_value(magics_instance, capsys):
     """Test that cat returns an error when -n has an invalid (non-numeric) value."""
     result = magics_instance.hdfs("cat /fake-file -n abc")
     assert "Error: invalid number of lines" in result

@@ -10,7 +10,7 @@ from typing import Any, Optional, Union
 
 import pandas as pd
 from IPython.core.magic import Magics, line_magic, magics_class
-from IPython.display import HTML
+from IPython.display import HTML, display
 from traitlets import TraitType, Unicode
 
 from .client import WebHDFSClient
@@ -266,10 +266,12 @@ class WebHDFSMagics(Magics):
     def _handle_cat(self, args: list) -> str:
         """Handle cat command with argument parsing."""
         if not args:
-            return "Usage: %hdfs cat <file> [-n <number_of_lines>]"
+            return "Usage: %hdfs cat <file> [-n <lines>] [--format <type>] [--raw]"
 
         file_path = None
         num_lines = 100
+        format_type = None
+        raw = False
 
         i = 0
         while i < len(args):
@@ -281,6 +283,16 @@ class WebHDFSMagics(Magics):
                     i += 2
                 except ValueError:
                     return f"Error: invalid number of lines '{args[i + 1]}'."
+            elif args[i] == "--format":
+                if i + 1 >= len(args):
+                    return "Error: --format option requires a type (csv, parquet, pandas, raw)."
+                format_type = args[i + 1]
+                if format_type not in ['csv', 'parquet', 'pandas', 'raw']:
+                    return f"Error: invalid format type '{format_type}'. Use: csv, parquet, pandas, or raw."
+                i += 2
+            elif args[i] == "--raw":
+                raw = True
+                i += 1
             else:
                 if file_path is not None:
                     return "Error: multiple file paths specified."
@@ -288,9 +300,16 @@ class WebHDFSMagics(Magics):
                 i += 1
 
         if not file_path:
-            return "Usage: %hdfs cat <file> [-n <number_of_lines>]"
+            return "Usage: %hdfs cat <file> [-n <lines>] [--format <type>] [--raw]"
 
-        return self.cat_cmd.execute(file_path, num_lines)
+        result = self.cat_cmd.execute(file_path, num_lines, format_type=format_type, raw=raw)
+        
+        # If result starts with "Error:", return it so it can be checked in tests
+        # Otherwise print it for nice display in notebooks
+        if result.startswith("Error:"):
+            return result
+        else:
+            print(result)
 
     def _handle_chmod(self, args: list) -> str:
         """Handle chmod command."""

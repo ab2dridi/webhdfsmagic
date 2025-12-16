@@ -124,6 +124,45 @@ Wait 30-60 seconds after `docker-compose up -d` for HDFS to fully initialize.
 
 Make sure `user.name=testuser` is included in WebHDFS requests.
 
+## 🎯 Smart Cat Demo
+
+The smart cat feature allows automatic formatting of CSV and Parquet files. To test it:
+
+### Setup Test Data
+
+```bash
+# Create test files
+cat > /tmp/sales.csv << 'EOF'
+Product,Region,Sales,Quantity
+Laptop,North,15000,25
+Phone,South,8000,40
+Tablet,East,12000,30
+Monitor,West,5000,15
+Keyboard,North,2000,50
+EOF
+
+# Upload to HDFS
+docker cp /tmp/sales.csv namenode:/tmp/sales.csv
+docker exec namenode hdfs dfs -mkdir -p /data
+docker exec namenode hdfs dfs -put -f /tmp/sales.csv /data/sales.csv
+```
+
+### Test Smart Cat
+
+Open `../examples/smart_cat_demo.ipynb` in Jupyter and run the cells to see:
+- Automatic CSV/Parquet detection
+- Beautiful table formatting
+- Delimiter auto-detection (comma, tab, semicolon)
+- Format options (`--raw`, `--format pandas`)
+
+See [SMART_CAT_TEST_RESULTS.md](../examples/SMART_CAT_TEST_RESULTS.md) for complete test results.
+
+### Cleanup
+
+```bash
+./cleanup.sh
+```
+
 ## 📝 Notes
 
 This is a **development/demo environment only**. Do not use in production.

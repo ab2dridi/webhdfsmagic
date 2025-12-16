@@ -40,7 +40,7 @@ df = pd.read_csv('file.csv')
 | `%hdfs mkdir <path>` | Create directory (parents created automatically) |
 | `%hdfs put <local> <hdfs>` | Upload one or more files (supports wildcards `*.csv`) |
 | `%hdfs get <hdfs> <local>` | Download files (supports wildcards and `~` for home directory) |
-| `%hdfs cat <file> [-n lines]` | Display file content (default: first 100 lines) |
+| `%hdfs cat <file> [-n lines] [--format type] [--raw]` | Display file content with smart formatting for CSV/Parquet |
 | `%hdfs rm [-r] <path>` | Delete files/directories (`-r` for recursive, supports wildcards) |
 | `%hdfs chmod [-R] <mode> <path>` | Change permissions (`-R` for recursive) |
 | `%hdfs chown [-R] <user:group> <path>` | Change owner (`-R` for recursive, requires superuser) |
@@ -163,6 +163,19 @@ grep "hdfs put" ~/.webhdfsmagic/logs/webhdfsmagic.log
 # Display first 50 lines
 %hdfs cat /user/hdfs/data/file.csv -n 50
 
+# Smart CSV formatting (automatic table display)
+%hdfs cat /user/hdfs/data/sales.csv
+# Output: Formatted table with columns
+
+# Display Parquet file as table
+%hdfs cat /user/hdfs/data/records.parquet -n 20
+
+# Get pandas DataFrame format
+%hdfs cat /user/hdfs/data/data.csv --format pandas
+
+# Raw text display (no formatting)
+%hdfs cat /user/hdfs/data/file.csv --raw
+
 # Delete files with wildcards
 %hdfs rm /user/hdfs/temp/*.log
 
@@ -199,6 +212,36 @@ Upload, download, and delete multiple files using shell-style wildcards:
 
 # Delete log files
 %hdfs rm /hdfs/temp/*.log
+```
+
+### Smart File Formatting (CSV & Parquet)
+
+Automatically format structured files as readable tables:
+
+```python
+# CSV files are automatically detected and formatted
+%hdfs cat /data/sales.csv
+# ┌────────────┬─────────┬────────┐
+# │ date       │ product │ amount │
+# ├────────────┼─────────┼────────┤
+# │ 2025-12-08 │ laptop  │ 1200   │
+# │ 2025-12-09 │ phone   │ 800    │
+# └────────────┴─────────┴────────┘
+
+# Parquet files work seamlessly
+%hdfs cat /data/records.parquet -n 100
+
+# TSV and other delimiters are auto-detected
+%hdfs cat /data/data.tsv  # Detects tab delimiter
+
+# Force specific format
+%hdfs cat /data/file.csv --format pandas  # pandas DataFrame output
+%hdfs cat /data/file.csv --raw            # Raw text, no formatting
+
+# Supported formats:
+#   - CSV (comma, tab, semicolon, pipe - auto-detected)
+#   - Parquet (requires pyarrow)
+#   - TSV (tab-separated values)
 ```
 
 ### Recursive Permissions

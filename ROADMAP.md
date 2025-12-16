@@ -20,20 +20,24 @@
 - ✅ SSL verification with custom certificates
 - ✅ Streaming support for large file downloads
 
-## 🎯 Priority Features
+## ✅ Recently Implemented
 
-### 1. Smart Formatting for `cat` - CSV/TSV/JSON Display ⭐ HIGH PRIORITY
+### 1. Smart Formatting for `cat` - CSV/Parquet Display ✅ **IMPLEMENTED**
 
-Improve `cat` command with intelligent formatting for structured files
+The `cat` command now supports intelligent formatting for structured files!
 
-**Current Issue:** CSV files display as raw text with `\n` making them hard to read
+**Features Implemented:**
+- ✅ Auto-detect file type from extension and content (CSV, TSV, Parquet)
+- ✅ Infer delimiter automatically (comma, tab, pipe, semicolon)
+- ✅ Display as formatted table using `tabulate`
+- ✅ Support for Parquet files with `pyarrow`
+- ✅ Line limit option to avoid memory issues with large files
+- ✅ `--raw` flag to preserve raw text behavior
+- ✅ `--format` option (csv, parquet, pandas, raw)
+
+**Usage:**
 ```python
-%hdfs cat /data/sales.csv
-# Output: date,product,amount\n2025-12-08,laptop,1200\n... (unreadable)
-```
-
-**Planned Solution:** Auto-detect format and display as formatted table
-```python
+# Automatic CSV formatting
 %hdfs cat /data/sales.csv
 # ┌────────────┬─────────┬────────┐
 # │ date       │ product │ amount │
@@ -41,21 +45,21 @@ Improve `cat` command with intelligent formatting for structured files
 # │ 2025-12-08 │ laptop  │ 1200   │
 # └────────────┴─────────┴────────┘
 
-# Or return as pandas DataFrame
+# Parquet files
+%hdfs cat /data/records.parquet -n 50
+
+# Return as pandas DataFrame
 %hdfs cat --format pandas /data/sales.csv
+
+# Raw text display
+%hdfs cat --raw /data/file.csv
 ```
 
-**Implementation Plan:**
-- Detect file type from extension and content (CSV, TSV, JSON, Parquet)
-- Infer delimiter automatically (comma, tab, pipe, semicolon)
-- Parse header row to identify columns
-- Display as formatted table using `tabulate` or pandas
-- Stream large files (show first N rows to avoid memory issues)
-- Add `--raw` flag to preserve current behavior
-
-**Dependencies:** `pandas`, `tabulate` (optional)
+**Dependencies Added:** `tabulate>=0.9.0`, `pyarrow>=10.0.0`
 
 **Use Case:** Data exploration, validation, quick inspection of datasets
+
+## 🎯 Priority Features
 
 ### 2. stat - File Metadata
 
