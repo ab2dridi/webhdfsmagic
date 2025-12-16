@@ -1,9 +1,11 @@
 """Tests for file operations commands (cat, get, put)."""
 
 import os
+import tempfile
 from unittest.mock import MagicMock
 
 import pandas as pd
+import pytest
 import requests
 
 
@@ -475,3 +477,310 @@ def test_get_wildcard_to_tilde_subdirectory(monkeypatch, magics_instance, tmp_pa
     assert os.path.exists(os.path.join(test_dir, "customers.csv"))
     assert os.path.exists(os.path.join(test_dir, "file.csv"))
     assert os.path.exists(os.path.join(test_dir, "sales_20251205.csv"))
+
+
+class TestGetCommandAdvanced:
+    """Advanced GetCommand tests for edge cases."""
+
+    @pytest.fixture
+    def get_command(self):
+        """Create a GetCommand instance."""
+        from unittest.mock import MagicMock
+
+        from webhdfsmagic.client import WebHDFSClient
+        from webhdfsmagic.commands.file_ops import GetCommand
+
+        client = MagicMock(spec=WebHDFSClient)
+        client.knox_url = "https://knox.example.com"
+        client.webhdfs_api = "/webhdfs/v1"
+        client.auth_user = "testuser"
+        client.auth_password = "testpass"
+        client.verify_ssl = False
+        cmd = GetCommand(client)
+        cmd.format_ls_func = None
+        return cmd
+
+    def test_download_with_307_redirect(self, get_command):
+        """Test file download with 307 redirect."""
+        from unittest.mock import Mock, patch
+
+        with patch('requests.get') as mock_get:
+            redirect_response = Mock()
+            redirect_response.status_code = 307
+            redirect_response.headers = {
+                'Location': 'http://abc123def456:50075/webhdfs/v1/file.txt?op=OPEN'
+            }
+
+            final_response = Mock()
+            final_response.status_code = 200
+            final_response.iter_content = lambda chunk_size: [b'file content']
+            final_response.raise_for_status = Mock()
+
+            mock_get.side_effect = [redirect_response, final_response]
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                local_path = os.path.join(tmpdir, "test.txt")
+                get_command._download_file("/file.txt", local_path)
+
+                assert os.path.exists(local_path)
+                with open(local_path, 'rb') as f:
+                    assert f.read() == b'file content'
+
+    def test_handle_redirect_with_docker_hostname(self, get_command):
+        """Test redirect handling with Docker internal hostname."""
+        from unittest.mock import Mock, patch
+
+        import requests
+
+        redirect_response = Mock(spec=requests.Response)
+        redirect_response.status_code = 307
+        redirect_response.headers = {
+            'Location': 'http://abc123def456:50075/webhdfs/v1/file.txt?op=OPEN'
+        }
+
+        with patch('requests.get') as mock_get:
+            final_response = Mock()
+            final_response.status_code = 200
+            mock_get.return_value = final_response
+
+            get_command._handle_redirect(redirect_response)
+
+            call_args = mock_get.call_args
+            assert 'localhost:50075' in call_args[0][0]
+
+    def test_handle_redirect_adds_username(self, get_command):
+        """Test redirect handling adds username to query params."""
+        from unittest.mock import Mock, patch
+
+        import requests
+
+        redirect_response = Mock(spec=requests.Response)
+        redirect_response.headers = {
+            'Location': 'http://datanode:50075/webhdfs/v1/file.txt?op=OPEN'
+        }
+
+        with patch('requests.get') as mock_get:
+            mock_get.return_value = Mock()
+
+            get_command._handle_redirect(redirect_response)
+
+            call_args = mock_get.call_args[0][0]
+            assert 'user.name=testuser' in call_args
+
+    def test_download_multiple_with_error(self, get_command):
+        """Test multiple file download with error handling."""
+        from unittest.mock import patch
+
+        import pandas as pd
+
+        mock_df = pd.DataFrame({'name': ['file1.txt', 'file2.txt']})
+
+        def mock_format_ls(path):
+            return mock_df
+
+        with patch.object(get_command, '_download_file') as mock_download:
+            mock_download.side_effect = [None, Exception("Network error")]
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                result = get_command._download_multiple(
+                    "/data/*.txt", tmpdir, tmpdir, mock_format_ls
+                )
+
+                assert "file1.txt downloaded" in result
+                assert "Error:" in result
+                assert "Network error" in result
+
+    def test_resolve_path_with_slash_dot(self, get_command):
+        """Test path resolution with /. at end."""
+        result = get_command._resolve_local_path("/test/.", "/test/.", "file.txt")
+
+        assert "file.txt" in result
+        assert os.path.normpath(result) == result
+
+    def test_resolve_path_ending_with_dot_no_slash(self, get_command):
+        """Test path resolution ending with dot but no slash."""
+        result = get_command._resolve_local_path("/test.", "/test.", "file.txt")
+
+        assert "file.txt" in result
+
+    def test_resolve_path_simple(self, get_command):
+        """Test simple path resolution."""
+        result = get_command._resolve_local_path("/test", "/test", "file.txt")
+
+        assert "file.txt" in result
+        assert "/test" in result
+
+
+class TestPutCommandAdvanced:
+    """Advanced PutCommand tests for edge cases."""
+
+    @pytest.fixture
+    def put_command(self):
+        """Create a PutCommand instance."""
+        from unittest.mock import MagicMock
+
+        from webhdfsmagic.client import WebHDFSClient
+        from webhdfsmagic.commands.file_ops import PutCommand
+
+        client = MagicMock(spec=WebHDFSClient)
+        client.knox_url = "https://knox.example.com"
+        client.webhdfs_api = "/webhdfs/v1"
+        client.auth_user = "testuser"
+        client.auth_password = "testpass"
+        client.verify_ssl = False
+        return PutCommand(client)
+
+    def test_fix_docker_hostname(self, put_command):
+        """Test Docker hostname fixing in redirect URLs."""
+        url = "http://1a2b3c4d5e6f:50075/webhdfs/v1/file.txt?op=CREATE&overwrite=true"
+
+        fixed_url = put_command._fix_docker_hostname(url)
+
+        assert "localhost:50075" in fixed_url
+        assert "1a2b3c4d5e6f" not in fixed_url
+
+    def test_fix_docker_hostname_adds_username(self, put_command):
+        """Test hostname fixing adds username parameter."""
+        url = "http://datanode:50075/webhdfs/v1/file.txt?op=CREATE"
+
+        fixed_url = put_command._fix_docker_hostname(url)
+
+        assert "user.name=testuser" in fixed_url
+
+    def test_upload_with_307_redirect(self, put_command):
+        """Test file upload with 307 redirect."""
+        from unittest.mock import Mock, patch
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tmp:
+            tmp.write("test content")
+            tmp_path = tmp.name
+
+        try:
+            with patch('requests.put') as mock_put:
+                init_response = Mock()
+                init_response.status_code = 307
+                init_response.headers = {
+                    'Location': 'http://abc123def456:50075/webhdfs/v1/test.txt?op=CREATE'
+                }
+
+                upload_response = Mock()
+                upload_response.status_code = 201
+
+                mock_put.side_effect = [init_response, upload_response]
+
+                result = put_command.execute(tmp_path, "/hdfs/test.txt")
+
+                assert "uploaded to" in result
+        finally:
+            os.unlink(tmp_path)
+
+    def test_upload_init_failure(self, put_command):
+        """Test upload when initialization fails."""
+        from unittest.mock import Mock, patch
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tmp:
+            tmp.write("test content")
+            tmp_path = tmp.name
+
+        try:
+            with patch('requests.put') as mock_put:
+                init_response = Mock()
+                init_response.status_code = 500
+                mock_put.return_value = init_response
+
+                result = put_command.execute(tmp_path, "/hdfs/test.txt")
+
+                assert "Initiation failed" in result
+                assert "500" in result
+        finally:
+            os.unlink(tmp_path)
+
+    def test_upload_failure_after_redirect(self, put_command):
+        """Test upload failure after successful redirect."""
+        from unittest.mock import Mock, patch
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tmp:
+            tmp.write("test content")
+            tmp_path = tmp.name
+
+        try:
+            with patch('requests.put') as mock_put:
+                init_response = Mock()
+                init_response.status_code = 307
+                init_response.headers = {'Location': 'http://datanode:50075/file.txt'}
+
+                upload_response = Mock()
+                upload_response.status_code = 500
+
+                mock_put.side_effect = [init_response, upload_response]
+
+                result = put_command.execute(tmp_path, "/hdfs/test.txt")
+
+                assert "Upload failed" in result
+        finally:
+            os.unlink(tmp_path)
+
+    def test_upload_with_exception(self, put_command):
+        """Test upload with exception handling."""
+        from unittest.mock import patch
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tmp:
+            tmp.write("test content")
+            tmp_path = tmp.name
+
+        try:
+            with patch('requests.put') as mock_put:
+                mock_put.side_effect = Exception("Connection timeout")
+
+                result = put_command.execute(tmp_path, "/hdfs/test.txt")
+
+                assert "Error for" in result
+                assert "Connection timeout" in result
+        finally:
+            os.unlink(tmp_path)
+
+
+class TestBaseCommandMethods:
+    """Test BaseCommand methods using CatCommand."""
+
+    @pytest.fixture
+    def command(self):
+        """Create a CatCommand instance."""
+        from unittest.mock import MagicMock
+
+        from webhdfsmagic.client import WebHDFSClient
+        from webhdfsmagic.commands.file_ops import CatCommand
+
+        client = MagicMock(spec=WebHDFSClient)
+        return CatCommand(client)
+
+    def test_validate_path_empty(self, command):
+        """Test path validation with empty path."""
+        with pytest.raises(ValueError, match="Path cannot be empty"):
+            command.validate_path("")
+
+    def test_validate_path_not_absolute(self, command):
+        """Test path validation with relative path."""
+        with pytest.raises(ValueError, match="must be absolute"):
+            command.validate_path("relative/path")
+
+    def test_validate_path_success(self, command):
+        """Test successful path validation."""
+        result = command.validate_path("/absolute/path")
+        assert result == "/absolute/path"
+
+    def test_handle_error_with_context(self, command):
+        """Test error handling with context."""
+        error = Exception("Test error")
+        result = command.handle_error(error, context="During upload")
+
+        assert "During upload" in result
+        assert "Test error" in result
+
+    def test_handle_error_without_context(self, command):
+        """Test error handling without context."""
+        error = Exception("Test error")
+        result = command.handle_error(error)
+
+        assert "Error:" in result
+        assert "Test error" in result

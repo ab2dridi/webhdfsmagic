@@ -98,3 +98,121 @@ def test_startup_script_content(tmp_path, monkeypatch):
 
     # Should not print errors
     assert "print" not in content
+
+
+class TestInstallMain:
+    """Test install.py main() function."""
+
+    def test_main_success(self):
+        """Test main() function with successful installation."""
+        from unittest.mock import patch
+
+        from webhdfsmagic.install import main
+
+        with patch('webhdfsmagic.install.install_autoload', return_value=True):
+            with patch('builtins.print') as mock_print:
+                result = main()
+
+                assert result == 0
+                calls = [str(call) for call in mock_print.call_args_list]
+                assert any("complete" in str(call).lower() for call in calls)
+
+    def test_main_failure(self):
+        """Test main() function with failed installation."""
+        from unittest.mock import patch
+
+        from webhdfsmagic.install import main
+
+        with patch('webhdfsmagic.install.install_autoload', return_value=False):
+            with patch('builtins.print') as mock_print:
+                result = main()
+
+                assert result == 1
+                calls = [str(call) for call in mock_print.call_args_list]
+                assert any("failed" in str(call).lower() for call in calls)
+
+    def test_install_autoload_with_stderr_warning(self):
+        """Test install_autoload prints warning to stderr on failure."""
+        from unittest.mock import patch
+
+        from webhdfsmagic.install import install_autoload
+
+        with patch(
+            'webhdfsmagic.install.get_ipython_startup_dir',
+            side_effect=Exception("No IPython")
+        ):
+            with patch('sys.stderr'):
+                result = install_autoload()
+
+                assert result is False
+
+    def test_install_autoload_without_stderr(self):
+        """Test install_autoload when sys.stderr is not available."""
+        import sys
+        from unittest.mock import patch
+
+        from webhdfsmagic.install import install_autoload
+
+        with patch(
+            'webhdfsmagic.install.get_ipython_startup_dir',
+            side_effect=Exception("Test error")
+        ):
+            old_stderr = sys.stderr
+            try:
+                del sys.stderr
+                result = install_autoload()
+                assert result is False
+            finally:
+                sys.stderr = old_stderr
+
+
+class TestInitAutoSetup:
+    """Test __init__.py auto-setup logic."""
+
+    def test_setup_autoload_success(self):
+        """Test successful auto-setup on import."""
+        from unittest.mock import patch
+
+        with patch(
+            'webhdfsmagic.install.install_autoload', return_value=True
+        ) as mock_install:
+            from webhdfsmagic import _setup_autoload
+
+            _setup_autoload()
+
+            mock_install.assert_called_once()
+
+    def test_setup_autoload_exception(self):
+        """Test auto-setup handles exceptions silently."""
+        from unittest.mock import patch
+
+        with patch(
+            'webhdfsmagic.install.install_autoload', side_effect=Exception("Test error")
+        ):
+            from webhdfsmagic import _setup_autoload
+
+            _setup_autoload()
+
+    def test_auto_setup_checks_startup_script(self):
+        """Test that auto-setup checks for startup script existence."""
+        import importlib
+        from unittest.mock import patch
+
+        import webhdfsmagic
+
+        with patch('pathlib.Path.exists', return_value=False):
+            with patch('webhdfsmagic.install.install_autoload', return_value=True):
+                with patch('pathlib.Path.touch'):
+                    with patch('pathlib.Path.mkdir'):
+                        importlib.reload(webhdfsmagic)
+
+    def test_auto_setup_skips_if_already_installed(self):
+        """Test that auto-setup is skipped if startup script exists."""
+        import importlib
+        from unittest.mock import patch
+
+        import webhdfsmagic
+
+        with patch('pathlib.Path.exists', return_value=True):
+            with patch('webhdfsmagic.install.install_autoload'):
+                importlib.reload(webhdfsmagic)
