@@ -43,8 +43,8 @@ df = pd.read_csv('file.csv')
 |----------|-------------|
 | `%hdfs ls [path]` | List files and directories (returns pandas DataFrame) |
 | `%hdfs mkdir <path>` | Create directory (parents created automatically) |
-| `%hdfs put <local> <hdfs>` | Upload one or more files (supports wildcards `*.csv`) |
-| `%hdfs get <hdfs> <local>` | Download files (supports wildcards and `~` for home directory) |
+| `%hdfs put <local> <hdfs>` | Upload one or more files (supports wildcards `*.csv`, <br><span style="color:#0969da;font-weight:500">-t, --threads &lt;N&gt;</span> for parallel uploads) |
+| `%hdfs get <hdfs> <local>` | Download files (supports wildcards and `~` for home directory, <br><span style="color:#0969da;font-weight:500">-t, --threads &lt;N&gt;</span> for parallel downloads) |
 | `%hdfs cat <file> [-n lines] [--format type] [--raw]` | Display file content with smart formatting for CSV/Parquet |
 | `%hdfs rm [-r] <path>` | Delete files/directories (`-r` for recursive, supports wildcards) |
 | `%hdfs chmod [-R] <mode> <path>` | Change permissions (`-R` for recursive) |
@@ -308,6 +308,7 @@ This allows you to upload or download multiple files simultaneously, greatly spe
 
 See the [notebook demo](examples/demo_real_cluster.ipynb) for a full example.
 
+
 ## 📖 Built-in Help System
 
 Get detailed help directly in your notebook:
@@ -322,6 +323,31 @@ This displays a **comprehensive interactive help** with:
 - Options and flags for each command
 - Format descriptions for the `cat` command
 - Auto-detection features explanation
+
+**Summary of available commands:**
+
+| Command | Description |
+|---------|-------------|
+| `%hdfs help` | Display this help |
+| `%hdfs setconfig {...}` | Set configuration (JSON format) |
+| `%hdfs ls [path]` | List files and directories |
+| `%hdfs mkdir <path>` | Create directory |
+| `%hdfs rm <path> [-r]` | Delete file/directory <br> <span style="color:#0969da;font-weight:500">-r</span> : recursive deletion |
+| `%hdfs put <local> <hdfs>` | Upload files (supports wildcards) <br> <span style="color:#0969da;font-weight:500">-t, --threads &lt;N&gt;</span> : use N parallel threads for multi-file uploads |
+| `%hdfs get <hdfs> <local>` | Download files (supports wildcards) <br> <span style="color:#0969da;font-weight:500">-t, --threads &lt;N&gt;</span> : use N parallel threads for multi-file downloads |
+| `%hdfs cat <file> [options]` | Smart file preview (CSV/TSV/Parquet) <br> <span style="color:#0969da;font-weight:500">-n &lt;lines&gt;</span> : limit to N rows (default: 100) <br> <span style="color:#0969da;font-weight:500">--format &lt;type&gt;</span> : force format (csv, parquet, pandas, polars, raw) <br> <span style="color:#0969da;font-weight:500">--raw</span> : display raw content without formatting |
+| `%hdfs chmod [-R] <mode> <path>` | Change permissions (e.g., 644, 755) <br> <span style="color:#0969da;font-weight:500">-R</span> : recursive |
+| `%hdfs chown [-R] <user:group> <path>` | Change owner and group <br> <span style="color:#0969da;font-weight:500">-R</span> : recursive |
+
+**Examples:**
+
+- `%hdfs cat data.csv -n 10` – Preview first 10 rows
+- `%hdfs cat data.parquet --format pandas` – Display in pandas format (classic)
+- `%hdfs cat data.parquet --format polars` – Display with schema and types
+- `%hdfs put *.csv /data/` – Upload all CSV files
+- `%hdfs put -t 4 ./data/*.csv /hdfs/input/` – Upload files with 4 parallel threads
+- `%hdfs get -t 8 /hdfs/output/*.parquet ./results/` – Download files with 8 parallel threads
+- `%hdfs chmod -R 755 /mydir` – Set permissions recursively
 
 The help command is always available and shows the most up-to-date documentation for your installed version.
 
