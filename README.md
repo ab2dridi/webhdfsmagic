@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-0.0.3-blue.svg)
+![Version](https://img.shields.io/badge/version-0.0.4-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Tests](https://img.shields.io/badge/tests-254%20passed-success.svg)
@@ -275,6 +275,38 @@ Automatically format structured files as readable tables:
 ```
 
 **⚠️ Large Parquet Files**: Files > 100 MB will show a warning recommending to download first with `%hdfs get` for better performance.
+
+### Parallel Uploads & Downloads (Multi-threaded PUT/GET)
+
+Starting from version 0.0.4, webhdfsmagic supports **parallel file transfers** using the `--threads` (or `-t`) option for both `put` and `get` commands.
+
+This allows you to upload or download multiple files simultaneously, greatly speeding up operations on large datasets or many files.
+
+**Key features:**
+- Multi-threaded transfers for PUT and GET
+- Syntax: `%hdfs put --threads N <local_files> <hdfs_dir>`
+- Syntax: `%hdfs get --threads N <hdfs_files> <local_dir>`
+- N = number of threads (e.g. 4, 8, 16)
+
+**Examples:**
+```python
+# Parallel upload: PUT multiple files to HDFS using 4 threads
+%hdfs put --threads 4 *.csv /demo/data/
+
+# Parallel download: GET multiple files from HDFS using 4 threads
+%hdfs get --threads 4 /demo/data/* ./downloads/
+
+# You can also use the short option -t
+%hdfs put -t 8 *.tsv /demo/data/
+```
+
+- The `--threads`/`-t` option is available for both `put` and `get` commands.
+- You can specify any number of threads (e.g. 2, 4, 8, 16) depending on your system and network.
+- Parallel transfers are especially useful for large datasets or many small files.
+- Error handling is robust: if a file fails to transfer, you’ll get a clear error message for that file.
+- The command syntax is identical to single-threaded, just add `--threads N` or `-t N`.
+
+See the [notebook demo](examples/demo_real_cluster.ipynb) for a full example.
 
 ## 📖 Built-in Help System
 

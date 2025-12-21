@@ -183,7 +183,7 @@ def test_put_success(magics):
     with patch.object(magics.put_cmd, "execute", return_value="File uploaded"):
         result = magics.hdfs("put /local/file.txt /hdfs/dest/")
         assert "File uploaded" in result
-        magics.put_cmd.execute.assert_called_once_with("/local/file.txt", "/hdfs/dest/")
+        magics.put_cmd.execute.assert_called_once_with("/local/file.txt", "/hdfs/dest/", 1)
 
 
 def test_get_missing_destination(magics):
@@ -199,7 +199,7 @@ def test_get_success(magics):
         result = magics.hdfs("get /hdfs/file.txt /local/dest/")
         assert "File downloaded" in result
         magics.get_cmd.execute.assert_called_once_with(
-            "/hdfs/file.txt", "/local/dest/", magics._format_ls
+            "/hdfs/file.txt", "/local/dest/", magics._format_ls, 1
         )
 
 
@@ -488,3 +488,63 @@ class TestMagicsEdgeCasesForCoverage:
         assert "Error" in str(result) or "Usage" in str(result) or "required" in str(
             result
         ).lower()
+
+    def test_put_with_threads_option(self, magics_instance):
+        """Test put command with -t et --threads options."""
+        with patch.object(magics_instance.put_cmd, "execute", return_value="File uploaded") as mock_exec:
+            result = magics_instance.hdfs("put -t 3 /local/file.txt /hdfs/dest/")
+            assert "File uploaded" in result
+            mock_exec.assert_called_once_with(
+                "/local/file.txt", "/hdfs/dest/", 3
+            )
+
+        with patch.object(magics_instance.put_cmd, "execute", return_value="File uploaded") as mock_exec:
+            result = magics_instance.hdfs("put --threads 5 /local/file.txt /hdfs/dest/")
+            assert "File uploaded" in result
+            mock_exec.assert_called_once_with(
+                "/local/file.txt", "/hdfs/dest/", 5
+            )
+
+        with patch.object(magics_instance.put_cmd, "execute", return_value="File uploaded") as mock_exec:
+            result = magics_instance.hdfs("put -t 0 /local/file.txt /hdfs/dest/")
+            assert "File uploaded" in result
+            mock_exec.assert_called_once_with(
+                "/local/file.txt", "/hdfs/dest/", 1
+            )
+
+        with patch.object(magics_instance.put_cmd, "execute", return_value="File uploaded") as mock_exec:
+            result = magics_instance.hdfs("put --threads abc /local/file.txt /hdfs/dest/")
+            assert "File uploaded" in result
+            mock_exec.assert_called_once_with(
+                "/local/file.txt", "/hdfs/dest/", 1
+            )
+
+    def test_get_with_threads_option(self, magics_instance):
+        """Test get command with -t et --threads options."""
+        with patch.object(magics_instance.get_cmd, "execute", return_value="File downloaded") as mock_exec:
+            result = magics_instance.hdfs("get -t 2 /hdfs/file.txt /local/dest/")
+            assert "File downloaded" in result
+            mock_exec.assert_called_once_with(
+                "/hdfs/file.txt", "/local/dest/", magics_instance._format_ls, 2
+            )
+
+        with patch.object(magics_instance.get_cmd, "execute", return_value="File downloaded") as mock_exec:
+            result = magics_instance.hdfs("get --threads 4 /hdfs/file.txt /local/dest/")
+            assert "File downloaded" in result
+            mock_exec.assert_called_once_with(
+                "/hdfs/file.txt", "/local/dest/", magics_instance._format_ls, 4
+            )
+
+        with patch.object(magics_instance.get_cmd, "execute", return_value="File downloaded") as mock_exec:
+            result = magics_instance.hdfs("get -t 0 /hdfs/file.txt /local/dest/")
+            assert "File downloaded" in result
+            mock_exec.assert_called_once_with(
+                "/hdfs/file.txt", "/local/dest/", magics_instance._format_ls, 1
+            )
+
+        with patch.object(magics_instance.get_cmd, "execute", return_value="File downloaded") as mock_exec:
+            result = magics_instance.hdfs("get --threads abc /hdfs/file.txt /local/dest/")
+            assert "File downloaded" in result
+            mock_exec.assert_called_once_with(
+                "/hdfs/file.txt", "/local/dest/", magics_instance._format_ls, 1
+            )

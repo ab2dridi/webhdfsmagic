@@ -279,9 +279,18 @@ def test_get_wildcard_to_directory_with_dot(monkeypatch, magics_instance, tmp_pa
     monkeypatch.setattr(requests, "get", mock_get)
 
     # Test with wildcard and /. notation
-    result = magics_instance.hdfs(f"get /demo/data/* {dest_dir}/.")
-    assert "file1.csv downloaded to" in result
-    assert "file2.csv downloaded to" in result
+    import io
+    import sys
+    captured = io.StringIO()
+    sys_stdout = sys.stdout
+    sys.stdout = captured
+    try:
+        result = magics_instance.hdfs(f"get /demo/data/* {dest_dir}/.")
+    finally:
+        sys.stdout = sys_stdout
+    output = captured.getvalue()
+    assert "file1.csv downloaded to" in output
+    assert "file2.csv downloaded to" in output
 
     # Verify files were written to the correct location
     assert (dest_dir / "file1.csv").exists()
@@ -318,9 +327,18 @@ def test_get_wildcard_to_nonexistent_directory(monkeypatch, magics_instance, tmp
     monkeypatch.setattr(requests, "get", mock_get)
 
     # Test with wildcard to non-existent directory
-    result = magics_instance.hdfs(f"get /hdfs/data/* {dest_dir}/")
-    assert "data1.csv downloaded to" in result
-    assert "data2.csv downloaded to" in result
+    import io
+    import sys
+    captured = io.StringIO()
+    sys_stdout = sys.stdout
+    sys.stdout = captured
+    try:
+        result = magics_instance.hdfs(f"get /hdfs/data/* {dest_dir}/")
+    finally:
+        sys.stdout = sys_stdout
+    output = captured.getvalue()
+    assert "data1.csv downloaded to" in output
+    assert "data2.csv downloaded to" in output
 
     # Verify directory was created and files were written
     assert dest_dir.exists()
@@ -357,9 +375,18 @@ def test_get_wildcard_to_current_directory(monkeypatch, magics_instance, tmp_pat
     monkeypatch.setattr(requests, "get", mock_get)
 
     # Test with wildcard to current directory
-    result = magics_instance.hdfs("get /hdfs/files/* .")
-    assert "test1.csv downloaded to" in result
-    assert "test2.csv downloaded to" in result
+    import io
+    import sys
+    captured = io.StringIO()
+    sys_stdout = sys.stdout
+    sys.stdout = captured
+    try:
+        result = magics_instance.hdfs("get /hdfs/files/* .")
+    finally:
+        sys.stdout = sys_stdout
+    output = captured.getvalue()
+    assert "test1.csv downloaded to" in output
+    assert "test2.csv downloaded to" in output
 
     # Verify files were written to current directory
     assert (tmp_path / "test1.csv").exists()
@@ -397,10 +424,19 @@ def test_get_wildcard_to_directory_without_slash(monkeypatch, magics_instance, t
     monkeypatch.setattr(requests, "get", mock_get)
 
     # Test with wildcard to directory without trailing /
-    result = magics_instance.hdfs(f"get /demo/data/* {dest_dir}")
-    assert "customers.csv downloaded to" in result
-    assert "customers2.csv downloaded to" in result
-    assert "file.csv downloaded to" in result
+    import io
+    import sys
+    captured = io.StringIO()
+    sys_stdout = sys.stdout
+    sys.stdout = captured
+    try:
+        result = magics_instance.hdfs(f"get /demo/data/* {dest_dir}")
+    finally:
+        sys.stdout = sys_stdout
+    output = captured.getvalue()
+    assert "customers.csv downloaded to" in output
+    assert "customers2.csv downloaded to" in output
+    assert "file.csv downloaded to" in output
 
     # Verify files were written to the directory
     assert (dest_dir / "customers.csv").exists()
@@ -467,10 +503,19 @@ def test_get_wildcard_to_tilde_subdirectory(monkeypatch, magics_instance, tmp_pa
     monkeypatch.setattr(requests, "get", mock_get)
 
     # Test with wildcard to ~/test_webhdfs/
-    result = magics_instance.hdfs("get /demo/data/* ~/test_webhdfs/")
-    assert "customers.csv downloaded to" in result
-    assert "file.csv downloaded to" in result
-    assert "sales_20251205.csv downloaded to" in result
+    import io
+    import sys
+    captured = io.StringIO()
+    sys_stdout = sys.stdout
+    sys.stdout = captured
+    try:
+        result = magics_instance.hdfs("get /demo/data/* ~/test_webhdfs/")
+    finally:
+        sys.stdout = sys_stdout
+    output = captured.getvalue()
+    assert "customers.csv downloaded to" in output
+    assert "file.csv downloaded to" in output
+    assert "sales_20251205.csv downloaded to" in output
 
     # Verify files were written to the correct location
     test_dir = os.path.join(home_dir, "test_webhdfs")
@@ -735,7 +780,7 @@ class TestPutCommandAdvanced:
 
                 result = put_command.execute(tmp_path, "/hdfs/test.txt")
 
-                assert "Error for" in result
+                assert ("Error for" in result or "Error uploading" in result)
                 assert "Connection timeout" in result
         finally:
             os.unlink(tmp_path)
@@ -945,3 +990,87 @@ class TestFileOpsEdgeCases:
                     result = cmd._download_single("/test.txt", "/tmp/output", "/tmp/output")
                     # Covers lines 375-378 (else branch when NOT ending with / or .)
                     assert "downloaded" in result.lower()
+
+
+def test_get_file_size_error(monkeypatch, magics_instance):
+    """Test _get_file_size avec erreur HTTP."""
+    from webhdfsmagic.commands.file_ops import CatCommand
+    cat_cmd = CatCommand(magics_instance.client)
+    monkeypatch.setattr(
+        "requests.get",
+        lambda *a, **kw: MagicMock(
+            status_code=404,
+            raise_for_status=MagicMock(side_effect=Exception("404 error")),
+            json=lambda: {}
+        ),
+    )
+    try:
+        cat_cmd._get_file_size("/notfound")
+    except Exception as e:
+        assert "404 error" in str(e)
+
+
+def test_format_csv_polars(monkeypatch, magics_instance):
+    """Test _format_csv avec format_type=polars."""
+    import pandas as pd
+
+    from webhdfsmagic.commands.file_ops import CatCommand
+    cat_cmd = CatCommand(magics_instance.client)
+    df = pd.DataFrame({"a": [1,2], "b": [3,4]})
+    text = df.to_csv(index=False)
+    result = cat_cmd._format_csv(text.encode(), 2, "polars")
+    assert "shape" in result or "a" in result
+
+
+def test_format_parquet_polars(monkeypatch, magics_instance):
+    """Test _format_parquet avec format_type=polars."""
+    import io
+
+    import polars as pl
+
+    from webhdfsmagic.commands.file_ops import CatCommand
+    cat_cmd = CatCommand(magics_instance.client)
+    df = pl.DataFrame({"a": [1,2], "b": [3,4]})
+    buf = io.BytesIO()
+    df.write_parquet(buf)
+    result = cat_cmd._format_parquet(buf.getvalue(), 2, "polars")
+    assert "shape" in result or "a" in result
+
+
+def test_format_parquet_error(monkeypatch, magics_instance):
+    """Test _format_parquet avec erreur de parsing."""
+    from webhdfsmagic.commands.file_ops import CatCommand
+    cat_cmd = CatCommand(magics_instance.client)
+    result = cat_cmd._format_parquet(b"notparquet", 2, None)
+    assert "Raw content not available" in result
+
+
+def test_download_multiple_sequential_error(monkeypatch, magics_instance):
+    """Test _download_multiple_sequential avec erreur."""
+    from webhdfsmagic.commands.file_ops import GetCommand
+    get_cmd = GetCommand(magics_instance.client)
+    def fail_download(hdfs_file, final_local_dest):
+        raise Exception("fail")
+    get_cmd._download_file = fail_download
+    result = get_cmd._download_multiple_sequential([("/hdfs/file", "/tmp/file", "file")])
+    assert "Error:" in result
+
+
+def test_download_multiple_parallel_error(monkeypatch, magics_instance):
+    """Test _download_multiple_parallel avec erreur."""
+    from webhdfsmagic.commands.file_ops import GetCommand
+    get_cmd = GetCommand(magics_instance.client)
+    def fail_download(hdfs_file, final_local_dest):
+        raise Exception("fail")
+    result = get_cmd._download_multiple_parallel([("/hdfs/file", "/tmp/file", "file")], 2)
+    assert "Error downloading" in result
+
+
+def test_upload_multiple_parallel_error(monkeypatch, magics_instance):
+    """Test _upload_multiple_parallel avec erreur."""
+    from webhdfsmagic.commands.file_ops import PutCommand
+    put_cmd = PutCommand(magics_instance.client)
+    def fail_upload(local_file, hdfs_dest):
+        raise Exception("fail")
+    result = put_cmd._upload_multiple_parallel(["/tmp/file"], "/hdfs/dest", 2)
+    assert "Error uploading" in result

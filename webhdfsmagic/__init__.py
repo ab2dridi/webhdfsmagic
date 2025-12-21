@@ -4,7 +4,7 @@ Package webhdfsmagic
 This package provides an IPython extension for interacting with HDFS via WebHDFS/Knox.
 """
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 from .magics import WebHDFSMagics as WebHDFSMagics
 from .magics import load_ipython_extension as load_ipython_extension

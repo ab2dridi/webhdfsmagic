@@ -2,7 +2,17 @@
 
 ## Current Status
 
-**Version 0.0.3** - Smart cat feature with CSV/Parquet support
+**Version 0.0.4** - Multi-threaded get/put
+
+
+**Features Implemented:**
+- ✅ Auto-detect file type from extension and content (CSV, TSV, Parquet)
+- ✅ Infer delimiter automatically (comma, tab, pipe, semicolon)
+- ✅ Display as formatted table using `tabulate`
+- ✅ Support for Parquet files
+- ✅ Line limit option to avoid memory issues with large files
+- ✅ `--raw` flag to preserve raw text behavior
+- ✅ `--format` option (pandas, polars)
 
 **Version 0.0.2** - 8 commands fully implemented and tested:
 - ✅ `ls` - List files and directories
@@ -22,57 +32,11 @@
 - ✅ SSL verification with custom certificates
 - ✅ Streaming support for large file downloads
 
-## ✅ Recently Implemented
 
-### 1. Smart Formatting for `cat` - CSV/Parquet Display ✅ **IMPLEMENTED**
-
-The `cat` command now supports intelligent formatting for structured files!
-
-**Features Implemented:**
-- ✅ Auto-detect file type from extension and content (CSV, TSV, Parquet)
-- ✅ Infer delimiter automatically (comma, tab, pipe, semicolon)
-- ✅ Display as formatted table using `tabulate`
-- ✅ Support for Parquet files with `pyarrow`
-- ✅ Line limit option to avoid memory issues with large files
-- ✅ `--raw` flag to preserve raw text behavior
-- ✅ `--format` option (csv, parquet, pandas, raw)
-
-**Usage:**
-```python
-# Automatic CSV formatting
-%hdfs cat /data/sales.csv
-# ┌────────────┬─────────┬────────┐
-# │ date       │ product │ amount │
-# ├────────────┼─────────┼────────┤
-# │ 2025-12-08 │ laptop  │ 1200   │
-# └────────────┴─────────┴────────┘
-
-# Parquet files
-%hdfs cat /data/records.parquet -n 50
-
-# Return as pandas DataFrame
-%hdfs cat --format pandas /data/sales.csv
-
-# Raw text display
-%hdfs cat --raw /data/file.csv
-```
-
-**Dependencies Added:** `tabulate>=0.9.0`, `pyarrow>=10.0.0`
-
-**Use Case:** Data exploration, validation, quick inspection of datasets
 
 ## 🎯 Priority Features
 
-### 2. stat - File Metadata
-
-Get detailed information about a file (size, owner, permissions, modification date, etc.)
-
-```python
-%hdfs stat /data/large_file.csv
-# Output: Size: 1.2 GB, Owner: hdfs, Permissions: rw-r--r--, Modified: 2025-12-04 10:30:00
-```
-
-### 2. stat - File Metadata
+### 1. stat - File Metadata
 
 Get detailed information about a file (size, owner, permissions, modification date, etc.)
 
@@ -83,7 +47,7 @@ Get detailed information about a file (size, owner, permissions, modification da
 
 **Use Case:** Data validation, existence checking, quick inspection before processing
 
-### 3. du - Disk Usage
+### 2. du - Disk Usage
 
 Calculate disk space used by files or directories
 
@@ -102,7 +66,7 @@ Calculate disk space used by files or directories
 
 **Use Case:** Space monitoring, quota management, cleaning old data
 
-### 4. mv - Move/Rename
+### 3. mv - Move/Rename
 
 Move or rename files and directories
 
@@ -116,7 +80,7 @@ Move or rename files and directories
 
 ## 🚀 Future Features
 
-### 5. cp - Copy Files
+### 4. cp - Copy Files
 
 Duplicate files on HDFS for backup or replication
 
@@ -126,7 +90,7 @@ Duplicate files on HDFS for backup or replication
 
 **Use Case:** Backup, data duplication, testing
 
-### 6. tail - Read File End
+### 5. tail - Read File End
 
 Display the last lines of a file (useful for logs)
 
@@ -136,7 +100,7 @@ Display the last lines of a file (useful for logs)
 
 **Use Case:** Log analysis, debugging, monitoring
 
-### 7. find - Search Files
+### 6. find - Search Files
 
 Search files by name or pattern in the tree
 
@@ -147,7 +111,7 @@ Search files by name or pattern in the tree
 
 **Use Case:** Data discovery, audit, cleanup
 
-### 8. Progress Bars
+### 7. Progress Bars
 
 Display progress for long operations (upload/download of large files)
 
@@ -158,17 +122,8 @@ Display progress for long operations (upload/download of large files)
 
 **Use Case:** Better user experience, operation tracking
 
-### 9. Parallel Operations
 
-Speed up transfers of multiple files with parallelization
-
-```python
-%hdfs put -j 4 *.csv /data/  # 4 parallel threads
-```
-
-**Use Case:** Performance, batch processing
-
-### 10. Checksum - Integrity Verification
+### 8. Checksum - Integrity Verification
 
 Calculate and verify MD5 checksums of files
 
@@ -179,7 +134,7 @@ Calculate and verify MD5 checksums of files
 
 **Use Case:** Integrity validation, corruption detection
 
-### 11. Append - Add to File
+### 9. Append - Add to File
 
 Append content to the end of an existing file
 
@@ -244,63 +199,3 @@ View and manage disk space quotas
 # Space quota: 500 GB, Used: 342 GB (68%)
 ```
 
-## 💡 Contributing
-
-Contributions are welcome! To propose a new feature:
-
-1. Open an issue on GitHub for discussion
-2. Fork the project and create a branch
-3. Implement the feature with tests
-4. Submit a Pull Request
-
-**Current Priorities:** Smart formatting for `cat` (CSV/TSV/JSON), `stat`, `du`, `mv`
-
-
-### Enterprise (Future)
-10. 🏢 Kerberos
-11. 🏢 Advanced SSL
-12. 🏢 Quota management
-
-## 📊 Community Feedback
-
-We welcome feature requests! Please:
-1. Open an issue on GitHub with `[feature-request]` tag
-2. Describe your use case
-3. Provide example usage
-
-## 🤝 Contributing
-
-Want to implement a feature from the roadmap?
-
-1. Check the [Issues page](https://github.com/ab2dridi/webhdfsmagic/issues) for current work
-2. Comment on the issue you want to work on
-3. Fork the repo and create a feature branch
-4. Implement with tests
-5. Submit a PR with:
-   - Implementation
-   - Unit tests
-   - Demo notebook example
-   - Documentation update
-
-## 📝 Decision Log
-
-### Why These Features?
-
-- **Smart cat formatting**: Most critical UX improvement - CSV files are unreadable in raw format
-- **stat/du/mv**: Most commonly requested operations from user surveys
-- **Progress bars**: Frequently mentioned in feedback for large file operations
-- **Kerberos**: Required for 80% of enterprise Hadoop deployments
-- **Multiple profiles**: Common request from users with dev/prod environments
-
-### What We're NOT Implementing
-
-- **HDFS Federation support**: Too complex, minimal user benefit
-- **Snapshot management**: Advanced feature, low demand
-- **WebHDFS server implementation**: Out of scope for client library
-- **GUI/Web interface**: Notebook-first philosophy
-
----
-
-**Last Updated**: December 8, 2025  
-**Roadmap Owner**: @ab2dridi  
-**Status**: 🟢 Actively Maintained

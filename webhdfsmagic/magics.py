@@ -53,8 +53,8 @@ class WebHDFSMagics(Magics):
       - %hdfs ls        : List files on HDFS
       - %hdfs mkdir     : Create a directory on HDFS
       - %hdfs rm        : Delete files/directories (wildcards supported, -r for recursive)
-      - %hdfs put       : Upload local files to HDFS (wildcards supported)
-      - %hdfs get       : Download files from HDFS
+    - %hdfs put       : Upload local files to HDFS (wildcards supported, -t/--threads for parallel)
+    - %hdfs get       : Download files from HDFS (wildcards supported, -t/--threads for parallel)
       - %hdfs cat       : Smart preview with auto-detection (CSV/TSV/Parquet)
                           Options: -n <lines>, --format <type>, --raw
       - %hdfs chmod     : Change file/directory permissions (-R for recursive)
@@ -151,6 +151,35 @@ class WebHDFSMagics(Magics):
         """Set owner (backward compatibility)."""
         return self.chown_cmd._set_owner(path, owner, group)
 
+    def _extract_threads_option(self, args: list) -> tuple:
+        """
+        Extract --threads or -t option from arguments.
+        
+        Args:
+            args: Command arguments list
+            
+        Returns:
+            Tuple of (threads_count, remaining_args)
+            Default threads_count is 1 if not specified
+        """
+        threads = 1
+        remaining_args = []
+        i = 0
+        while i < len(args):
+            if args[i] in ["-t", "--threads"] and i + 1 < len(args):
+                try:
+                    threads = int(args[i + 1])
+                    if threads < 1:
+                        threads = 1
+                    i += 2
+                except (ValueError, IndexError):
+                    # Ignore invalid value, skip both option and value
+                    i += 2
+            else:
+                remaining_args.append(args[i])
+                i += 1
+        return threads, remaining_args
+
     @line_magic
     def hdfs(self, line: str) -> Union[pd.DataFrame, str, HTML]:
         """
@@ -228,28 +257,44 @@ class WebHDFSMagics(Magics):
                 )
                 return result
 
+
             elif cmd == "put":
                 if len(args) < 2:
-                    return "Usage: %hdfs put <local_pattern> <hdfs_dest>"
-                result = self.put_cmd.execute(args[0], args[1])
+                    return "Usage: %hdfs put [-t <threads>] <local_pattern> <hdfs_dest>"
+                threads, parsed_args = self._extract_threads_option(args)
+                if len(parsed_args) < 2:
+                    return "Usage: %hdfs put [-t <threads>] <local_pattern> <hdfs_dest>"
+                result = self.put_cmd.execute(parsed_args[0], parsed_args[1], threads)
                 self.logger.log_operation_end(
                     operation="hdfs put",
                     success=True,
-                    local_pattern=args[0],
-                    hdfs_dest=args[1],
+                    local_pattern=parsed_args[0],
+                    hdfs_dest=parsed_args[1],
+                    threads=threads,
                 )
+                if isinstance(result, str) and result.count("\n") > 1:
+                    print(result)
+                    return
                 return result
+
 
             elif cmd == "get":
                 if len(args) < 2:
-                    return "Usage: %hdfs get <hdfs_source> <local_dest>"
-                result = self.get_cmd.execute(args[0], args[1], self._format_ls)
+                    return "Usage: %hdfs get [-t <threads>] <hdfs_source> <local_dest>"
+                threads, parsed_args = self._extract_threads_option(args)
+                if len(parsed_args) < 2:
+                    return "Usage: %hdfs get [-t <threads>] <hdfs_source> <local_dest>"
+                result = self.get_cmd.execute(parsed_args[0], parsed_args[1], self._format_ls, threads)
                 self.logger.log_operation_end(
                     operation="hdfs get",
                     success=True,
-                    hdfs_source=args[0],
-                    local_dest=args[1],
+                    hdfs_source=parsed_args[0],
+                    local_dest=parsed_args[1],
+                    threads=threads,
                 )
+                if isinstance(result, str) and result.count("\n") > 1:
+                    print(result)
+                    return
                 return result
 
             elif cmd == "cat":
@@ -465,11 +510,15 @@ class WebHDFSMagics(Magics):
                 </tr>
                 <tr>
                     <td><code>%hdfs put &lt;local&gt; &lt;hdfs&gt;</code></td>
-                    <td>Upload files (supports wildcards)</td>
+                    <td>Upload files (supports wildcards)<br>
+                        <span class="option">-t, --threads &lt;N&gt;</span> :
+                        use N parallel threads for multi-file uploads</td>
                 </tr>
                 <tr>
                     <td><code>%hdfs get &lt;hdfs&gt; &lt;local&gt;</code></td>
-                    <td>Download files</td>
+                    <td>Download files (supports wildcards)<br>
+                        <span class="option">-t, --threads &lt;N&gt;</span> :
+                        use N parallel threads for multi-file downloads</td>
                 </tr>
                 <tr>
                     <td><code>%hdfs cat &lt;file&gt; [options]</code></td>
@@ -508,6 +557,10 @@ class WebHDFSMagics(Magics):
             <li><code>%hdfs cat data.parquet --format polars</code> -
                 Display with schema and types</li>
             <li><code>%hdfs put *.csv /data/</code> - Upload all CSV files</li>
+            <li><code>%hdfs put -t 4 ./data/*.csv /hdfs/input/</code> - 
+                Upload files with 4 parallel threads</li>
+            <li><code>%hdfs get -t 8 /hdfs/output/*.parquet ./results/</code> -
+                Download files with 8 parallel threads</li>
             <li><code>%hdfs chmod -R 755 /mydir</code> - Set permissions recursively</li>
         </ul>
         </div>

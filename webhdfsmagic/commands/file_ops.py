@@ -3,8 +3,8 @@ File operation commands for WebHDFS.
 
 This module implements commands for reading, downloading, and uploading files:
 - cat: Display file content (with smart formatting for CSV/Parquet)
-- get: Download files from HDFS
-- put: Upload files to HDFS
+- get: Download files from HDFS (with parallel download support)
+- put: Upload files to HDFS (with parallel upload support)
 """
 
 import fnmatch
@@ -13,6 +13,7 @@ import io
 import os
 import re
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
@@ -378,7 +379,8 @@ class GetCommand(BaseCommand):
         self,
         hdfs_source: str,
         local_dest: str,
-        format_ls_func: callable
+        format_ls_func: callable,
+        threads: int = 1
     ) -> str:
         """
         Download file(s) from HDFS.
@@ -387,6 +389,7 @@ class GetCommand(BaseCommand):
             hdfs_source: HDFS path or pattern (supports wildcards)
             local_dest: Local destination path
             format_ls_func: Function to list HDFS directory
+            threads: Number of parallel threads (default: 1)
 
         Returns:
             Success/error message(s)
@@ -397,7 +400,7 @@ class GetCommand(BaseCommand):
         # Handle wildcards
         if "*" in hdfs_source or "?" in hdfs_source:
             return self._download_multiple(
-                hdfs_source, local_dest, local_dest_expanded, format_ls_func
+                hdfs_source, local_dest, local_dest_expanded, format_ls_func, threads
             )
         else:
             return self._download_single(hdfs_source, local_dest, local_dest_expanded)
@@ -407,9 +410,10 @@ class GetCommand(BaseCommand):
         hdfs_pattern: str,
         local_dest: str,
         local_dest_expanded: str,
-        format_ls_func: callable
+        format_ls_func: callable,
+        threads: int = 1
     ) -> str:
-        """Download multiple files matching pattern."""
+        """Download multiple files matching pattern, optionally in parallel."""
         base_dir = os.path.dirname(hdfs_pattern)
         pattern = os.path.basename(hdfs_pattern)
 
@@ -419,29 +423,65 @@ class GetCommand(BaseCommand):
         if matching_files.empty:
             return f"No file matches the pattern {hdfs_pattern}"
 
-        responses = []
+        # Prepare list of download tasks
+        download_tasks = []
         for _, row in matching_files.iterrows():
             file_name = row["name"]
             hdfs_file = base_dir.rstrip("/") + "/" + file_name
-
-            # Determine final destination path
             final_local_dest = self._resolve_local_path(
                 local_dest, local_dest_expanded, file_name
             )
-
             # Ensure parent directory exists
             parent_dir = os.path.dirname(final_local_dest)
             if parent_dir and not os.path.exists(parent_dir):
                 os.makedirs(parent_dir, exist_ok=True)
 
+            download_tasks.append((hdfs_file, final_local_dest, file_name))
+
+        # Download files in parallel if threads > 1
+        if threads > 1:
+            return self._download_multiple_parallel(download_tasks, threads)
+        else:
+            return self._download_multiple_sequential(download_tasks)
+
+    def _download_multiple_sequential(self, download_tasks: list) -> str:
+        """Download files sequentially."""
+        responses = []
+        for hdfs_file, final_local_dest, file_name in download_tasks:
             try:
                 self._download_file(hdfs_file, final_local_dest)
                 responses.append(f"{file_name} downloaded to {final_local_dest}")
             except Exception as e:
                 tb = traceback.format_exc()
                 responses.append(f"Error: {str(e)}\nTraceback:\n{tb}")
+        if responses:
+            return "\n" + "\n".join(responses) + "\n"
+        return ""
 
-        return "\n".join(responses)
+    def _download_multiple_parallel(self, download_tasks: list, threads: int) -> str:
+        """Download files in parallel using ThreadPoolExecutor."""
+        responses = []
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            future_to_task = {
+                executor.submit(self._download_file, hdfs_file, final_local_dest): (
+                    file_name, final_local_dest, hdfs_file
+                )
+                for hdfs_file, final_local_dest, file_name in download_tasks
+            }
+
+            for future in as_completed(future_to_task):
+                file_name, final_local_dest, hdfs_file = future_to_task[future]
+                try:
+                    future.result()
+                    responses.append(f"{file_name} downloaded to {final_local_dest}")
+                except Exception as e:
+                    tb = traceback.format_exc()
+                    responses.append(
+                        f"Error downloading {file_name}: {str(e)}\nTraceback:\n{tb}"
+                    )
+        if responses:
+            return "\n" + "\n".join(responses) + "\n"
+        return ""
 
     def _download_single(
         self,
@@ -594,72 +634,111 @@ class PutCommand(BaseCommand):
             parsed.fragment
         ))
 
-    def execute(self, local_pattern: str, hdfs_dest: str) -> str:
+    def execute(self, local_pattern: str, hdfs_dest: str, threads: int = 1) -> str:
         """
         Upload file(s) to HDFS.
 
         Args:
             local_pattern: Local file path or pattern (supports wildcards)
             hdfs_dest: HDFS destination path
+            threads: Number of parallel threads (default: 1)
 
         Returns:
             Success/error message(s)
 
         Example:
             >>> cmd = PutCommand(client)
-            >>> result = cmd.execute("data/*.csv", "/hdfs/data/")
+            >>> result = cmd.execute("data/*.csv", "/hdfs/data/", threads=4)
             'file1.csv uploaded to /hdfs/data/\\nfile2.csv uploaded to /hdfs/data/'
         """
         local_files = glob.glob(os.path.expanduser(local_pattern))
         if not local_files:
             return f"No local files match the pattern: {local_pattern}"
 
+        # Upload files in parallel if threads > 1
+        if threads > 1:
+            return self._upload_multiple_parallel(local_files, hdfs_dest, threads)
+        else:
+            return self._upload_multiple_sequential(local_files, hdfs_dest)
+
+    def _upload_multiple_sequential(self, local_files: list, hdfs_dest: str) -> str:
+        """Upload files sequentially."""
         responses = []
         for local_file in local_files:
-            try:
-                # Phase 1: Create file
-                init_url = f"{self.client.knox_url}{self.client.webhdfs_api}{hdfs_dest}"
-                if hdfs_dest.endswith("/") or hdfs_dest.endswith("."):
-                    basename = os.path.basename(local_file)
-                    init_url = (
-                        f"{self.client.knox_url}{self.client.webhdfs_api}"
-                        f"{hdfs_dest}{basename}"
-                    )
+            response = self._upload_single_file(local_file, hdfs_dest)
+            responses.append(response)
+        if responses:
+            return "\n" + "\n".join(responses) + "\n"
+        return ""
 
-                init_response = requests.put(
-                    init_url,
-                    params={"op": "CREATE", "overwrite": "true"},
-                    auth=(self.client.auth_user, self.client.auth_password),
-                    verify=self.client.verify_ssl,
-                    allow_redirects=False,
+    def _upload_multiple_parallel(
+        self, local_files: list, hdfs_dest: str, threads: int
+    ) -> str:
+        """Upload files in parallel using ThreadPoolExecutor."""
+        responses = []
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            future_to_file = {
+                executor.submit(self._upload_single_file, local_file, hdfs_dest): local_file
+                for local_file in local_files
+            }
+
+            for future in as_completed(future_to_file):
+                local_file = future_to_file[future]
+                try:
+                    response = future.result()
+                    responses.append(response)
+                except Exception as e:
+                    responses.append(f"Error uploading {local_file}: {str(e)}")
+
+        if responses:
+            return "\n" + "\n".join(responses) + "\n"
+        return ""
+
+    def _upload_single_file(self, local_file: str, hdfs_dest: str) -> str:
+        """Upload a single file to HDFS."""
+        try:
+            # Phase 1: Create file
+            init_url = f"{self.client.knox_url}{self.client.webhdfs_api}{hdfs_dest}"
+            if hdfs_dest.endswith("/") or hdfs_dest.endswith("."):
+                basename = os.path.basename(local_file)
+                init_url = (
+                    f"{self.client.knox_url}{self.client.webhdfs_api}"
+                    f"{hdfs_dest}{basename}"
                 )
 
-                if init_response.status_code == 307:
-                    upload_url = init_response.headers["Location"]
+            init_response = requests.put(
+                init_url,
+                params={"op": "CREATE", "overwrite": "true"},
+                auth=(self.client.auth_user, self.client.auth_password),
+                verify=self.client.verify_ssl,
+                allow_redirects=False,
+            )
 
-                    # Fix Docker internal hostnames
-                    upload_url = self._fix_docker_hostname(upload_url)
+            if init_response.status_code == 307:
+                upload_url = init_response.headers["Location"]
 
-                    with open(local_file, "rb") as f:
-                        upload_response = requests.put(
-                            upload_url,
-                            data=f,
-                            auth=(self.client.auth_user, self.client.auth_password),
-                            verify=self.client.verify_ssl,
-                        )
-                    if upload_response.status_code in [200, 201]:
-                        responses.append(f"{local_file} uploaded to {hdfs_dest}")
-                    else:
-                        responses.append(
-                            f"Upload failed for {local_file}, "
-                            f"status: {upload_response.status_code}"
-                        )
-                else:
-                    responses.append(
-                        f"Initiation failed for {local_file}, "
-                        f"status: {init_response.status_code}"
+                # Fix Docker internal hostnames
+                upload_url = self._fix_docker_hostname(upload_url)
+
+                with open(local_file, "rb") as f:
+                    upload_response = requests.put(
+                        upload_url,
+                        data=f,
+                        auth=(self.client.auth_user, self.client.auth_password),
+                        verify=self.client.verify_ssl,
                     )
-            except Exception as e:
-                responses.append(f"Error for {local_file}: {str(e)}")
-
-        return "\n".join(responses)
+                if upload_response.status_code in [200, 201]:
+                    return f"{local_file} uploaded to {hdfs_dest}"
+                else:
+                    return (
+                        f"Upload failed for {local_file}, "
+                        f"status: {upload_response.status_code}"
+                    )
+            else:
+                return (
+                    f"Initiation failed for {local_file}, "
+                    f"status: {init_response.status_code}"
+                )
+        except Exception as e:
+            tb = traceback.format_exc()
+            return f"Error uploading {local_file}: {str(e)}\nTraceback:\n{tb}"
