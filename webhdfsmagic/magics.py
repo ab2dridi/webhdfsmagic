@@ -9,6 +9,7 @@ import traceback
 from typing import Any, Optional, Union
 
 import pandas as pd
+import requests
 from IPython.core.magic import Magics, line_magic, magics_class
 from IPython.display import HTML
 from traitlets import TraitType, Unicode
@@ -47,14 +48,17 @@ class WebHDFSMagics(Magics):
     IPython magics to interact with HDFS via WebHDFS/Knox.
 
     Supported commands:
-      - %hdfs ls      : List files on HDFS
-      - %hdfs mkdir   : Create a directory on HDFS
-      - %hdfs rm      : Delete files/directories (wildcards supported)
-      - %hdfs put     : Upload local files to HDFS
-      - %hdfs get     : Download files from HDFS
-      - %hdfs cat     : Display file content
-      - %hdfs chmod   : Change file/directory permissions
-      - %hdfs chown   : Change owner and group
+      - %hdfs help      : Display detailed help with all commands and options
+      - %hdfs setconfig : Set configuration (JSON format)
+      - %hdfs ls        : List files on HDFS
+      - %hdfs mkdir     : Create a directory on HDFS
+      - %hdfs rm        : Delete files/directories (wildcards supported, -r for recursive)
+      - %hdfs put       : Upload local files to HDFS (wildcards supported)
+      - %hdfs get       : Download files from HDFS
+      - %hdfs cat       : Smart preview with auto-detection (CSV/TSV/Parquet)
+                          Options: -n <lines>, --format <type>, --raw
+      - %hdfs chmod     : Change file/directory permissions (-R for recursive)
+      - %hdfs chown     : Change owner and group (-R for recursive)
     """
 
     # Configuration traits
@@ -111,6 +115,27 @@ class WebHDFSMagics(Magics):
         """
         return self.list_cmd.execute(path)
 
+    def _handle_http_error(
+        self,
+        error: requests.exceptions.HTTPError,
+        path: str,
+        context: str = "path",
+    ) -> Optional[str]:
+        """
+        Handle HTTP errors with user-friendly messages.
+
+        Args:
+            error: The HTTPError exception
+            path: The HDFS path being accessed
+            context: Context type (e.g., 'directory', 'path', 'file')
+
+        Returns:
+            User-friendly error message if handled, None to re-raise
+        """
+        if error.response.status_code == 404:
+            return f"{context.capitalize()} not found: {path}"
+        return None
+
     def _execute(self, method: str, operation: str, path: str, **params) -> dict[str, Any]:
         """
         Execute a WebHDFS request.
@@ -164,17 +189,29 @@ class WebHDFSMagics(Magics):
 
             elif cmd == "ls":
                 path = args[0] if args else "/"
-                result = self.list_cmd.execute(path)
-                self.logger.log_operation_end(
-                    operation="hdfs ls",
-                    success=True,
-                    path=path,
-                    file_count=len(result) if isinstance(result, pd.DataFrame) else 0,
-                )
-                # Handle empty directory case
-                if isinstance(result, dict) and result.get("empty_dir"):
+                try:
+                    result = self.list_cmd.execute(path)
+                    self.logger.log_operation_end(
+                        operation="hdfs ls",
+                        success=True,
+                        path=path,
+                        file_count=len(result) if isinstance(result, pd.DataFrame) else 0,
+                    )
+                    # Handle empty directory case
+                    if isinstance(result, dict) and result.get("empty_dir"):
+                        return result
                     return result
-                return result
+                except requests.exceptions.HTTPError as e:
+                    error_msg = self._handle_http_error(e, path, "directory")
+                    if error_msg:
+                        self.logger.log_operation_end(
+                            operation="hdfs ls",
+                            success=False,
+                            path=path,
+                            error=error_msg,
+                        )
+                        return error_msg
+                    raise
 
             elif cmd == "mkdir":
                 path = args[0]
@@ -285,9 +322,12 @@ class WebHDFSMagics(Magics):
                     return f"Error: invalid number of lines '{args[i + 1]}'."
             elif args[i] == "--format":
                 if i + 1 >= len(args):
-                    return "Error: --format option requires a type (csv, parquet, pandas, raw)."
+                    return (
+                        "Error: --format option requires a type "
+                        "(csv, parquet, pandas, polars, raw)."
+                    )
                 format_type = args[i + 1]
-                valid_formats = ['csv', 'parquet', 'pandas', 'raw']
+                valid_formats = ['csv', 'parquet', 'pandas', 'polars', 'raw']
                 if format_type not in valid_formats:
                     formats_str = ', '.join(valid_formats)
                     return f"Error: invalid format type '{format_type}'. Use: {formats_str}."
@@ -359,32 +399,118 @@ class WebHDFSMagics(Magics):
     def _help(self) -> HTML:
         """Display help information."""
         html = """
-        <table border="1" style="border-collapse: collapse; width: 100%;">
+        <style>
+            .hdfs-help {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                    Helvetica, Arial, sans-serif;
+            }
+            .hdfs-help table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 10px 0;
+            }
+            .hdfs-help th {
+                background-color: #f6f8fa;
+                padding: 8px;
+                text-align: left;
+                border: 1px solid #d0d7de;
+            }
+            .hdfs-help td {
+                padding: 8px;
+                border: 1px solid #d0d7de;
+                vertical-align: top;
+            }
+            .hdfs-help code {
+                background-color: #f6f8fa;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+                font-size: 0.9em;
+            }
+            .hdfs-help .option {
+                color: #0969da;
+                font-weight: 500;
+            }
+        </style>
+        <div class="hdfs-help">
+        <h3>📖 WebHDFS Magic Commands</h3>
+        <table>
             <thead>
                 <tr>
-                    <th>Command</th>
+                    <th style="width: 40%;">Command</th>
                     <th>Description</th>
                 </tr>
             </thead>
             <tbody>
-                <tr><td>%hdfs help</td><td>Display this help</td></tr>
-                <tr><td>%hdfs setconfig {...}</td><td>Set configuration</td></tr>
-                <tr><td>%hdfs ls [path]</td><td>List files</td></tr>
-                <tr><td>%hdfs mkdir &lt;path&gt;</td><td>Create directory</td></tr>
-                <tr><td>%hdfs rm &lt;path&gt; [-r]</td>
-                    <td>Delete file/directory</td></tr>
-                <tr><td>%hdfs put &lt;local&gt; &lt;hdfs&gt;</td>
-                    <td>Upload files</td></tr>
-                <tr><td>%hdfs get &lt;hdfs&gt; &lt;local&gt;</td>
-                    <td>Download files</td></tr>
-                <tr><td>%hdfs cat &lt;file&gt; [-n &lt;lines&gt;]</td>
-                    <td>Display file content</td></tr>
-                <tr><td>%hdfs chmod [-R] &lt;perm&gt; &lt;path&gt;</td>
-                    <td>Change permissions</td></tr>
-                <tr><td>%hdfs chown [-R] &lt;user:group&gt; &lt;path&gt;</td>
-                    <td>Change owner</td></tr>
+                <tr>
+                    <td><code>%hdfs help</code></td>
+                    <td>Display this help</td>
+                </tr>
+                <tr>
+                    <td><code>%hdfs setconfig {...}</code></td>
+                    <td>Set configuration (JSON format)</td>
+                </tr>
+                <tr>
+                    <td><code>%hdfs ls [path]</code></td>
+                    <td>List files and directories</td>
+                </tr>
+                <tr>
+                    <td><code>%hdfs mkdir &lt;path&gt;</code></td>
+                    <td>Create directory</td>
+                </tr>
+                <tr>
+                    <td><code>%hdfs rm &lt;path&gt; [-r]</code></td>
+                    <td>Delete file/directory<br>
+                        <span class="option">-r</span> : recursive deletion</td>
+                </tr>
+                <tr>
+                    <td><code>%hdfs put &lt;local&gt; &lt;hdfs&gt;</code></td>
+                    <td>Upload files (supports wildcards)</td>
+                </tr>
+                <tr>
+                    <td><code>%hdfs get &lt;hdfs&gt; &lt;local&gt;</code></td>
+                    <td>Download files</td>
+                </tr>
+                <tr>
+                    <td><code>%hdfs cat &lt;file&gt; [options]</code></td>
+                    <td><strong>Smart file preview</strong> (CSV/TSV/Parquet)<br>
+                        <span class="option">-n &lt;lines&gt;</span> :
+                        limit to N rows (default: 100)<br>
+                        <span class="option">--format &lt;type&gt;</span> :
+                        force format (csv, parquet, pandas, polars, raw)<br>
+                        <span class="option">--raw</span> :
+                        display raw content without formatting<br>
+                        <br>
+                        <strong>Auto-detects:</strong> file format, delimiter,
+                        data types<br>
+                        <strong>Formats:</strong>
+                        <em>pandas</em> (classic),
+                        <em>polars</em> (with schema),
+                        <em>grid</em> (default table)</td>
+                </tr>
+                <tr>
+                    <td><code>%hdfs chmod [-R] &lt;mode&gt; &lt;path&gt;</code></td>
+                    <td>Change permissions (e.g., 644, 755)<br>
+                        <span class="option">-R</span> : recursive</td>
+                </tr>
+                <tr>
+                    <td><code>%hdfs chown [-R] &lt;user:group&gt; &lt;path&gt;</code></td>
+                    <td>Change owner and group<br>
+                        <span class="option">-R</span> : recursive</td>
+                </tr>
             </tbody>
         </table>
+        <p><strong>💡 Examples:</strong></p>
+        <ul>
+            <li><code>%hdfs cat data.csv -n 10</code> - Preview first 10 rows</li>
+            <li><code>%hdfs cat data.parquet --format pandas</code> -
+                Display in pandas format (classic)</li>
+            <li><code>%hdfs cat data.parquet --format polars</code> -
+                Display with schema and types</li>
+            <li><code>%hdfs put *.csv /data/</code> - Upload all CSV files</li>
+            <li><code>%hdfs chmod -R 755 /mydir</code> - Set permissions recursively</li>
+        </ul>
+        </div>
         """
         return HTML(html)
 

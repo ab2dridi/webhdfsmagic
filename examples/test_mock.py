@@ -6,6 +6,7 @@ Uses mocks to simulate HDFS responses.
 import json
 from unittest.mock import MagicMock, patch
 
+import pytest
 from IPython.core.interactiveshell import InteractiveShell
 
 from webhdfsmagic.magics import WebHDFSMagics
@@ -60,28 +61,44 @@ def mock_request(method, url, **kwargs):
     return response
 
 
+@pytest.fixture
+def magics():
+    """Fixture to create a configured WebHDFSMagics instance."""
+    shell = InteractiveShell.instance()
+    magics_instance = WebHDFSMagics(shell)
+
+    # Configuration
+    magics_instance.knox_url = "http://fake-hdfs:8443/gateway/default"
+    magics_instance.webhdfs_api = "/webhdfs/v1"
+    magics_instance.auth_user = "testuser"
+    magics_instance.auth_password = "testpass"  # pragma: allowlist secret
+    magics_instance.verify_ssl = False
+
+    return magics_instance
+
+
 def test_autoload():
     """Test that the extension can be loaded."""
     print("Test 1: Loading the extension")
     shell = InteractiveShell.instance()
-    magics = WebHDFSMagics(shell)
+    magics_instance = WebHDFSMagics(shell)
 
     # Configuration
-    magics.knox_url = "http://fake-hdfs:8443/gateway/default"
-    magics.webhdfs_api = "/webhdfs/v1"
-    magics.auth_user = "testuser"
-    magics.auth_password = "testpass"  # pragma: allowlist secret
-    magics.verify_ssl = False
+    magics_instance.knox_url = "http://fake-hdfs:8443/gateway/default"
+    magics_instance.webhdfs_api = "/webhdfs/v1"
+    magics_instance.auth_user = "testuser"
+    magics_instance.auth_password = "testpass"  # pragma: allowlist secret
+    magics_instance.verify_ssl = False
 
     print("✓ Extension loaded successfully\n")
-    return magics
+    assert magics_instance is not None
 
 
 def test_ls(magics):
     """Test the ls command."""
     print("Test 2: Command %hdfs ls")
 
-    # Patch the _execute method directly
+    # Patch the client's execute method
     def mock_execute(method, operation, path, **params):
         if operation == "LISTSTATUS":
             return {
@@ -114,11 +131,13 @@ def test_ls(magics):
             }
         return {}
 
-    with patch.object(magics, "_execute", side_effect=mock_execute):
-        result = magics._format_ls("/user/test")
+    with patch.object(magics.client, "execute", side_effect=mock_execute):
+        result = magics.list_cmd.execute("/user/test")
         print(f"✓ Files found: {len(result)}")
         print(result)
         print()
+        assert result is not None
+        assert len(result) == 2
 
 
 def test_cat(magics):
@@ -132,9 +151,9 @@ def test_cat(magics):
         return response
 
     with patch("requests.get", side_effect=mock_get):
-        result = magics.hdfs("cat /user/test/file.txt -n 10")
-        print(f"✓ Content received: {len(result)} characters")
-        print(result)
+        # The cat command prints output, doesn't return it
+        magics.hdfs("cat /user/test/file.txt -n 10")
+        print("✓ Cat command executed successfully")
         print()
 
 

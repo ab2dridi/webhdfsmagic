@@ -270,6 +270,21 @@ def test_ls_with_specific_path(magics):
         magics.list_cmd.execute.assert_called_once_with("/data/files")
 
 
+def test_ls_directory_not_found(magics):
+    """Test ls command when directory does not exist (404 error)."""
+    import requests
+
+    mock_response = MagicMock()
+    mock_response.status_code = 404
+    http_error = requests.exceptions.HTTPError(response=mock_response)
+
+    with patch.object(magics.list_cmd, "execute", side_effect=http_error):
+        result = magics.hdfs("ls /nonexistent/dir")
+        assert "Directory not found" in result
+        assert "/nonexistent/dir" in result
+        assert "Traceback" not in result  # Should not include traceback for 404
+
+
 def test_exception_handling_with_traceback(magics):
     """Test that exceptions are caught and return error message with traceback."""
     with patch.object(

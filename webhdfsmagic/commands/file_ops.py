@@ -51,8 +51,34 @@ class CatCommand(BaseCommand):
             Exception: On HTTP or processing errors
         """
         try:
+            # Detect file type early for special handling
+            file_type_hint = 'parquet' if file_path.lower().endswith('.parquet') else None
+
+            # For Parquet files, check file size first (they must be fully downloaded)
+            if file_type_hint == 'parquet' and num_lines != -1:
+                file_size = self._get_file_size(file_path)
+                size_mb = file_size / (1024 * 1024)
+
+                # Warn if Parquet file is large (> 100 MB)
+                if size_mb > 100:
+                    warning = (
+                        f"⚠️  Large Parquet file detected: {size_mb:.1f} MB\n"
+                        f"   Parquet files must be fully downloaded for preview.\n"
+                        f"   Consider using: %hdfs get {file_path} . (download first)\n\n"
+                    )
+                    # Still proceed but with warning
+                    return warning + "Use -n -1 to force full download."
+
+            # Calculate max bytes to fetch based on num_lines and file type
+            # For Parquet: no limit (binary format requires full file)
+            # For text/CSV: limit to 50MB for partial reads
+            if file_type_hint == 'parquet':
+                max_bytes = None  # Parquet needs full file
+            else:
+                max_bytes = None if num_lines == -1 else 50 * 1024 * 1024  # 50 MB
+
             # Fetch file content
-            content = self._fetch_content(file_path, allow_redirects)
+            content = self._fetch_content(file_path, allow_redirects, max_bytes)
 
             # If raw mode requested, return raw content
             if raw or format_type == 'raw':
@@ -73,12 +99,58 @@ class CatCommand(BaseCommand):
             tb = traceback.format_exc()
             return f"Error: {str(e)}\nTraceback:\n{tb}"
 
-    def _fetch_content(self, file_path: str, allow_redirects: bool) -> bytes:
-        """Fetch raw file content from HDFS."""
+    def _get_file_size(self, file_path: str) -> int:
+        """
+        Get file size from HDFS using GETFILESTATUS operation.
+
+        Args:
+            file_path: HDFS file path
+
+        Returns:
+            File size in bytes
+        """
+        url = (
+            f"{self.client.knox_url}{self.client.webhdfs_api}"
+            f"{file_path}?op=GETFILESTATUS&user.name={self.client.auth_user}"
+        )
+
+        response = requests.get(
+            url,
+            auth=(self.client.auth_user, self.client.auth_password),
+            verify=self.client.verify_ssl,
+        )
+        response.raise_for_status()
+
+        file_status = response.json()
+        return file_status['FileStatus']['length']
+
+    def _fetch_content(
+        self,
+        file_path: str,
+        allow_redirects: bool,
+        max_bytes: Optional[int] = None
+    ) -> bytes:
+        """
+        Fetch raw file content from HDFS.
+
+        Args:
+            file_path: HDFS file path
+            allow_redirects: Whether to follow redirects automatically
+            max_bytes: Maximum number of bytes to read (None for entire file)
+
+        Returns:
+            File content as bytes
+        """
+        # Build URL with optional length parameter
         url = (
             f"{self.client.knox_url}{self.client.webhdfs_api}"
             f"{file_path}?op=OPEN"
         )
+
+        # Add length parameter to limit bytes read from HDFS
+        if max_bytes is not None:
+            url += f"&length={max_bytes}"
+
         response = requests.get(
             url,
             auth=(self.client.auth_user, self.client.auth_password),
@@ -159,6 +231,16 @@ class CatCommand(BaseCommand):
             else:
                 truncated = False
 
+            # Return as Polars DataFrame if requested (convert from pandas)
+            if format_type == 'polars':
+                import polars as pl
+                df_polars = pl.from_pandas(df)
+                result = str(df_polars)
+                if truncated:
+                    total_lines = len(content.decode('utf-8', errors='replace').splitlines())
+                    result += f"\n\n... (showing first {num_lines} of {total_lines} rows)"
+                return result
+
             # Return as pandas DataFrame if requested
             if format_type == 'pandas':
                 return str(df)
@@ -185,28 +267,37 @@ class CatCommand(BaseCommand):
             return error_msg + self._format_raw_content(content, num_lines)
 
     def _format_parquet(self, content: bytes, num_lines: int, format_type: Optional[str]) -> str:
-        """Format Parquet content as a table."""
+        """Format Parquet content as a table using Polars for efficiency."""
         try:
-            import pyarrow.parquet as pq
+            import polars as pl
 
-            # Read Parquet file from bytes
-            parquet_file = pq.read_table(io.BytesIO(content))
-            df = parquet_file.to_pandas()
+            # Read Parquet file from bytes using Polars (highly efficient!)
+            df = pl.read_parquet(io.BytesIO(content))
 
-            # Limit rows if requested
+            # Limit rows if requested (Polars handles this efficiently)
             if num_lines != -1 and len(df) > num_lines:
                 df = df.head(num_lines)
                 truncated = True
             else:
                 truncated = False
 
+            # Return as Polars DataFrame if requested (shows schema and types)
+            if format_type == 'polars':
+                result = str(df)
+                if truncated:
+                    result += f"\n\n... (showing first {num_lines} rows)"
+                return result
+
+            # Convert to pandas for display formatting
+            df_pandas = df.to_pandas()
+
             # Return as pandas DataFrame if requested
             if format_type == 'pandas':
-                return str(df)
+                return str(df_pandas)
 
             # Format as table
             table = tabulate(
-                df,
+                df_pandas,
                 headers='keys',
                 tablefmt='grid',
                 showindex=False,
@@ -215,8 +306,7 @@ class CatCommand(BaseCommand):
 
             # Add truncation notice if needed
             if truncated:
-                total_rows = len(parquet_file)
-                table += f"\n\n... (showing first {num_lines} of {total_rows} rows)"
+                table += f"\n\n... (showing first {num_lines} of {len(df)} rows)"
 
             return table
 

@@ -169,6 +169,22 @@ class TestCatCommandCSVFormatting:
         assert "name" in result
         assert "age" in result
 
+    @patch("requests.get")
+    def test_format_csv_polars_format(self, mock_get, cat_command):
+        """Test CSV with polars format output."""
+        csv_content = b"name,age\nJohn,30\nJane,25"
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = csv_content
+        mock_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_response
+
+        result = cat_command.execute("/data/test.csv", format_type="polars")
+
+        # Polars format shows data with schema information
+        assert "name" in result
+        assert "age" in result
+
 
 class TestCatCommandParquetFormatting:
     """Test Parquet formatting functionality."""
@@ -176,67 +192,95 @@ class TestCatCommandParquetFormatting:
     @patch("requests.get")
     def test_format_parquet_basic(self, mock_get, cat_command):
         """Test basic Parquet formatting."""
-        # Create a simple parquet file in memory
-        df = pd.DataFrame({"name": ["Alice", "Bob"], "age": [25, 30]})
-        buffer = io.BytesIO()
-        df.to_parquet(buffer, engine="pyarrow")
-        parquet_content = buffer.getvalue()
+        # Mock file size check to return small file (< 100 MB)
+        with patch.object(cat_command, '_get_file_size', return_value=1024):
+            # Create a simple parquet file in memory
+            df = pd.DataFrame({"name": ["Alice", "Bob"], "age": [25, 30]})
+            buffer = io.BytesIO()
+            df.to_parquet(buffer, engine="pyarrow")
+            parquet_content = buffer.getvalue()
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.content = parquet_content
-        mock_response.raise_for_status = MagicMock()
-        mock_get.return_value = mock_response
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = parquet_content
+            mock_response.raise_for_status = MagicMock()
+            mock_get.return_value = mock_response
 
-        result = cat_command.execute("/data/test.parquet")
+            result = cat_command.execute("/data/test.parquet")
 
-        assert "name" in result
-        assert "age" in result
-        assert "Alice" in result
-        assert "Bob" in result
+            assert "name" in result
+            assert "age" in result
+            assert "Alice" in result
+            assert "Bob" in result
 
     @patch("requests.get")
     def test_format_parquet_with_line_limit(self, mock_get, cat_command):
         """Test Parquet formatting with line limit."""
-        df = pd.DataFrame({
-            "id": [1, 2, 3, 4, 5],
-            "value": ["a", "b", "c", "d", "e"]
-        })
-        buffer = io.BytesIO()
-        df.to_parquet(buffer, engine="pyarrow")
-        parquet_content = buffer.getvalue()
+        # Mock file size check
+        with patch.object(cat_command, '_get_file_size', return_value=2048):
+            df = pd.DataFrame({
+                "id": [1, 2, 3, 4, 5],
+                "value": ["a", "b", "c", "d", "e"]
+            })
+            buffer = io.BytesIO()
+            df.to_parquet(buffer, engine="pyarrow")
+            parquet_content = buffer.getvalue()
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.content = parquet_content
-        mock_response.raise_for_status = MagicMock()
-        mock_get.return_value = mock_response
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = parquet_content
+            mock_response.raise_for_status = MagicMock()
+            mock_get.return_value = mock_response
 
-        result = cat_command.execute("/data/test.parquet", num_lines=2)
+            result = cat_command.execute("/data/test.parquet", num_lines=2)
 
-        # Should show only first 2 rows
-        assert "1" in result
-        assert "2" in result
+            # Should show only first 2 rows
+            assert "1" in result
+            assert "2" in result
 
     @patch("requests.get")
     def test_format_parquet_pandas_format(self, mock_get, cat_command):
         """Test Parquet with pandas format output."""
-        df = pd.DataFrame({"name": ["Alice"], "age": [25]})
-        buffer = io.BytesIO()
-        df.to_parquet(buffer, engine="pyarrow")
-        parquet_content = buffer.getvalue()
+        # Mock file size check
+        with patch.object(cat_command, '_get_file_size', return_value=512):
+            df = pd.DataFrame({"name": ["Alice"], "age": [25]})
+            buffer = io.BytesIO()
+            df.to_parquet(buffer, engine="pyarrow")
+            parquet_content = buffer.getvalue()
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.content = parquet_content
-        mock_response.raise_for_status = MagicMock()
-        mock_get.return_value = mock_response
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = parquet_content
+            mock_response.raise_for_status = MagicMock()
+            mock_get.return_value = mock_response
 
-        result = cat_command.execute("/data/test.parquet", format_type="pandas")
+            result = cat_command.execute("/data/test.parquet", format_type="pandas")
 
-        # Should contain DataFrame string representation
-        assert "name" in result
-        assert "age" in result
+            # Should contain DataFrame string representation
+            assert "name" in result
+            assert "age" in result
+
+    @patch("requests.get")
+    def test_format_parquet_polars_format(self, mock_get, cat_command):
+        """Test Parquet with polars format output (shows schema)."""
+        # Mock file size check
+        with patch.object(cat_command, '_get_file_size', return_value=512):
+            df = pd.DataFrame({"name": ["Alice"], "age": [25]})
+            buffer = io.BytesIO()
+            df.to_parquet(buffer, engine="pyarrow")
+            parquet_content = buffer.getvalue()
+
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = parquet_content
+            mock_response.raise_for_status = MagicMock()
+            mock_get.return_value = mock_response
+
+            result = cat_command.execute("/data/test.parquet", format_type="polars")
+
+            # Polars format includes shape info and column names
+            assert "name" in result
+            assert "age" in result
 
 
 class TestCatCommandRawFormatting:
@@ -557,3 +601,40 @@ class TestCatFormatMethods:
             result = cat_command.execute('/empty.txt')
 
             assert result == ''
+
+    def test_memory_protection_with_partial_read(self, cat_command):
+        """Test that partial reads use 50MB memory limit."""
+        from unittest.mock import Mock, patch
+
+        with patch('requests.get') as mock_get:
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.content = b'line1\nline2\nline3\n'
+            mock_response.raise_for_status = Mock()
+            mock_get.return_value = mock_response
+
+            # Execute with default num_lines (100) - should use 50MB limit
+            cat_command.execute('/large.txt', num_lines=100)
+
+            # Verify the URL contains length parameter for memory protection
+            called_url = mock_get.call_args[0][0]
+            assert 'length=52428800' in called_url  # 50 * 1024 * 1024 = 52428800
+
+    def test_no_memory_limit_for_full_read(self, cat_command):
+        """Test that full reads (num_lines=-1) have no memory limit."""
+        from unittest.mock import Mock, patch
+
+        with patch('requests.get') as mock_get:
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.content = b'complete file content\n'
+            mock_response.raise_for_status = Mock()
+            mock_get.return_value = mock_response
+
+            # Execute with num_lines=-1 (read all) - should NOT use limit
+            cat_command.execute('/full.txt', num_lines=-1)
+
+            # Verify the URL does NOT contain length parameter
+            called_url = mock_get.call_args[0][0]
+            assert 'length=' not in called_url
+

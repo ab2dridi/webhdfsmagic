@@ -1,8 +1,8 @@
 ![Version](https://img.shields.io/badge/version-0.0.3-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Tests](https://img.shields.io/badge/tests-249%20passed-success.svg)
-![Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)
+![Tests](https://img.shields.io/badge/tests-254%20passed-success.svg)
+![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen.svg)
 ![Code style](https://img.shields.io/badge/code%20style-ruff-000000.svg)
 ![Status](https://img.shields.io/badge/status-stable-green.svg)
 ![Maintained](https://img.shields.io/badge/maintained-yes-green.svg)
@@ -165,21 +165,27 @@ grep "hdfs put" ~/.webhdfsmagic/logs/webhdfsmagic.log
 # Download multiple files with wildcards
 %hdfs get /user/hdfs/results/*.csv ./local_results/
 
-# Display first 50 lines
+# ===== SMART CAT (File Preview) =====
+
+# Display first 50 lines (default grid table format)
 %hdfs cat /user/hdfs/data/file.csv -n 50
 
-# Smart CSV formatting (automatic table display)
+# Smart CSV formatting with automatic table display
 %hdfs cat /user/hdfs/data/sales.csv
-# Output: Formatted table with columns
 
 # Display Parquet file as table
 %hdfs cat /user/hdfs/data/records.parquet -n 20
 
-# Get pandas DataFrame format
+# Pandas format (classic DataFrame representation)
 %hdfs cat /user/hdfs/data/data.csv --format pandas
 
-# Raw text display (no formatting)
+# Polars format (shows schema + explicit types, 3.7x faster for Parquet!)
+%hdfs cat /user/hdfs/data/records.parquet --format polars
+
+# Raw text display (unformatted original content)
 %hdfs cat /user/hdfs/data/file.csv --raw
+
+# ===== File Management =====
 
 # Delete files with wildcards
 %hdfs rm /user/hdfs/temp/*.log
@@ -240,14 +246,52 @@ Automatically format structured files as readable tables:
 %hdfs cat /data/data.tsv  # Detects tab delimiter
 
 # Force specific format
-%hdfs cat /data/file.csv --format pandas  # pandas DataFrame output
+%hdfs cat /data/file.csv --format pandas  # Pandas DataFrame (classic)
+%hdfs cat /data/file.csv --format polars  # Polars with schema and types
 %hdfs cat /data/file.csv --raw            # Raw text, no formatting
 
 # Supported formats:
 #   - CSV (comma, tab, semicolon, pipe - auto-detected)
-#   - Parquet (requires pyarrow)
+#   - Parquet (uses Polars for 3.7x faster processing)
 #   - TSV (tab-separated values)
 ```
+
+**📊 Format Options Explained**:
+- **Default (grid)**: Beautiful ASCII table, perfect for reports
+- **`--format pandas`**: Classic pandas display, familiar to data scientists
+- **`--format polars`**: Shows schema with explicit types (str, i64, f64, bool) - ideal for data validation
+- **`--raw`**: Original file content without any parsing
+
+**🚀 Performance**: Parquet files are processed using **Polars**, providing ultra-fast reads and minimal memory usage (3.7x faster than PyArrow+Pandas).
+
+**Memory Protection**: By default, the `cat` command limits downloads to **50 MB** to prevent memory saturation. This protection applies when using `-n <lines>` option. To read entire large files, use `-n -1`:
+
+```python
+# Safe: Limited to 50 MB download
+%hdfs cat /huge_file.csv -n 100
+
+# Full read: No memory limit (use with caution on large files)
+%hdfs cat /small_file.csv -n -1
+```
+
+**⚠️ Large Parquet Files**: Files > 100 MB will show a warning recommending to download first with `%hdfs get` for better performance.
+
+## 📖 Built-in Help System
+
+Get detailed help directly in your notebook:
+
+```python
+# Show all available commands with descriptions
+%hdfs help
+```
+
+This displays a **comprehensive interactive help** with:
+- All available commands (ls, mkdir, put, get, cat, rm, chmod, chown)
+- Options and flags for each command
+- Format descriptions for the `cat` command
+- Auto-detection features explanation
+
+The help command is always available and shows the most up-to-date documentation for your installed version.
 
 ### Recursive Permissions
 
