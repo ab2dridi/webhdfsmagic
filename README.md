@@ -179,8 +179,15 @@ grep "hdfs put" ~/.webhdfsmagic/logs/webhdfsmagic.log
 # Pandas format (classic DataFrame representation)
 %hdfs cat /user/hdfs/data/data.csv --format pandas
 
+
+
 # Polars format (shows schema + explicit types, 3.7x faster for Parquet!)
 %hdfs cat /user/hdfs/data/records.parquet --format polars
+
+
+> **Warning:** Using `%hdfs cat /user/hdfs/data/records.parquet -n -1 --raw` will try to load the entire file into memory. For very large Parquet files, this can consume a lot of RAM and may crash your notebook. Use this command with caution and confirm you really want to load the full file before running it.
+
+> **Tip:** For large Parquet files, it is highly recommended to use `%hdfs cat file.parquet --format polars` instead of `%hdfs cat file.parquet --raw` for much better performance and readability.
 
 # Raw text display (unformatted original content)
 %hdfs cat /user/hdfs/data/file.csv --raw
