@@ -1,7 +1,7 @@
 ![Version](https://img.shields.io/badge/version-0.0.5-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Tests](https://img.shields.io/badge/tests-254%20passed-success.svg)
+![Tests](https://img.shields.io/badge/tests-300%20passed-success.svg)
 ![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen.svg)
 ![Code style](https://img.shields.io/badge/code%20style-ruff-000000.svg)
 ![Status](https://img.shields.io/badge/status-stable-green.svg)
@@ -43,6 +43,8 @@ df = pd.read_csv('file.csv')
 |----------|-------------|
 | `%hdfs ls [path]` | List files and directories (returns pandas DataFrame) |
 | `%hdfs du <path> [-s] [-h]` | Disk usage — real recursive sizes via `GETCONTENTSUMMARY` <br><span style="color:#0969da;font-weight:500">-s</span> : summary of path itself &nbsp;·&nbsp; <span style="color:#0969da;font-weight:500">-h</span> : human-readable (KB/MB/GB) |
+| `%hdfs stat <path>` | File/directory metadata — single-row DataFrame (GETFILESTATUS) |
+| `%hdfs mv <src> <dst>` | Rename or move a file/directory — server-side (RENAME, no data copy) |
 | `%hdfs mkdir <path>` | Create directory (parents created automatically) |
 | `%hdfs put <local> <hdfs>` | Upload one or more files (supports wildcards `*.csv`, <br><span style="color:#0969da;font-weight:500">-t, --threads &lt;N&gt;</span> for parallel uploads) |
 | `%hdfs get <hdfs> <local>` | Download files (supports wildcards and `~` for home directory, <br><span style="color:#0969da;font-weight:500">-t, --threads &lt;N&gt;</span> for parallel downloads) |
@@ -165,6 +167,18 @@ grep "hdfs put" ~/.webhdfsmagic/logs/webhdfsmagic.log
 
 # Combine both: summary + human-readable
 %hdfs du -sh /data/users
+
+# File metadata (name, type, size, owner, permissions, modified…)
+%hdfs stat /data/events.parquet
+
+# Metadata for a directory
+%hdfs stat /data/users
+
+# Rename a file
+%hdfs mv /data/old_name.csv /data/new_name.csv
+
+# Move a directory to another location
+%hdfs mv /data/tmp /data/archive/tmp
 
 # Create a directory
 %hdfs mkdir /user/hdfs/output
@@ -377,7 +391,7 @@ Get detailed help directly in your notebook:
 ```
 
 This displays a **comprehensive interactive help** with:
-- All available commands (ls, du, mkdir, put, get, cat, rm, chmod, chown)
+- All available commands (ls, du, stat, mv, mkdir, put, get, cat, rm, chmod, chown)
 - Options and flags for each command
 - Format descriptions for the `cat` command
 - Auto-detection features explanation
@@ -390,6 +404,8 @@ This displays a **comprehensive interactive help** with:
 | `%hdfs setconfig {...}` | Set configuration (JSON format) |
 | `%hdfs ls [path]` | List files and directories |
 | `%hdfs du <path> [-s] [-h]` | Disk usage (real recursive sizes) <br> <span style="color:#0969da;font-weight:500">-s</span> : summary of path itself &nbsp;·&nbsp; <span style="color:#0969da;font-weight:500">-h</span> : human-readable sizes |
+| `%hdfs stat <path>` | File/directory metadata — one API call (GETFILESTATUS) <br> Columns: name, type, size, owner, group, permissions, block_size, modified, replication |
+| `%hdfs mv <src> <dst>` | Rename or move a file/directory (RENAME) — server-side, no data copy |
 | `%hdfs mkdir <path>` | Create directory |
 | `%hdfs rm <path> [-r]` | Delete file/directory <br> <span style="color:#0969da;font-weight:500">-r</span> : recursive deletion |
 | `%hdfs put <local> <hdfs>` | Upload files (supports wildcards) <br> <span style="color:#0969da;font-weight:500">-t, --threads &lt;N&gt;</span> : use N parallel threads for multi-file uploads |
@@ -402,6 +418,10 @@ This displays a **comprehensive interactive help** with:
 
 - `%hdfs du /data/users` – List children with their real recursive sizes
 - `%hdfs du -sh /data/users` – Total size of the path, human-readable
+- `%hdfs stat /data/events.parquet` – Metadata for a file (size, owner, permissions…)
+- `%hdfs stat /data/users` – Metadata for a directory
+- `%hdfs mv /data/old.csv /data/new.csv` – Rename a file
+- `%hdfs mv /data/tmp /data/archive/tmp` – Move a directory
 - `%hdfs cat data.csv -n 10` – Preview first 10 rows
 - `%hdfs cat data.parquet --format pandas` – Display in pandas format (classic)
 - `%hdfs cat data.parquet --format polars` – Display with schema and types

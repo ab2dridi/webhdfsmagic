@@ -5,6 +5,17 @@ All notable changes to webhdfsmagic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.6] - 2026-02-26
+
+### Added
+- **`%hdfs stat` — File/directory metadata** (single path via `GETFILESTATUS`):
+  - Returns a single-row DataFrame with: `name`, `type`, `size`, `owner`, `group`, `permissions`, `block_size`, `modified`, `replication`
+  - Graceful 404 handling: returns a friendly "path not found" message instead of raising an exception
+- **`%hdfs mv` — Rename/move files and directories** (via `RENAME` operation):
+  - Syntax: `%hdfs mv <src> <dst>`
+  - Returns a success message or a clear error if the destination already exists
+  - Graceful 404 handling: returns a friendly message when the source path does not exist
+
 ## [0.0.5] - 2026-02-26
 
 ### Added
