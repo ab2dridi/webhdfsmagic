@@ -11,11 +11,13 @@ from .magics import load_ipython_extension as load_ipython_extension
 
 __all__ = ["WebHDFSMagics", "load_ipython_extension", "__version__"]
 
+
 # Auto-configure on first import (only once per environment)
 def _setup_autoload():
     """Set up automatic loading of webhdfsmagic in Jupyter/IPython."""
     try:
         from .install import install_autoload
+
         install_autoload()
     except Exception:
         pass  # Silently fail - don't break imports
@@ -40,4 +42,3 @@ try:
         marker_file.touch()
 except Exception:
     pass  # Don't break imports if setup fails
-

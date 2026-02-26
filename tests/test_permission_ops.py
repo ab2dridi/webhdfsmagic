@@ -11,23 +11,55 @@ from webhdfsmagic.commands.permission_ops import ChmodCommand, ChownCommand
 
 def test_chmod_recursive(monkeypatch, magics_instance):
     """Test the chmod -R command for recursive permission changes."""
+
     # Mock _format_ls to return different data based on path
     def mock_format_ls(path):
         if path == "/demo":
-            return pd.DataFrame([
-                {"name": "subdir", "type": "DIR", "permission": "755", "owner": "user",
-                 "group": "group", "size": 0, "modified": "2025-01-01", "replication": 0,
-                 "permissions": "rwxr-xr-x", "block_size": 0},
-                {"name": "file.txt", "type": "FILE", "permission": "644", "owner": "user",
-                 "group": "group", "size": 100, "modified": "2025-01-01", "replication": 3,
-                 "permissions": "rw-r--r--", "block_size": 134217728},
-            ])
+            return pd.DataFrame(
+                [
+                    {
+                        "name": "subdir",
+                        "type": "DIR",
+                        "permission": "755",
+                        "owner": "user",
+                        "group": "group",
+                        "size": 0,
+                        "modified": "2025-01-01",
+                        "replication": 0,
+                        "permissions": "rwxr-xr-x",
+                        "block_size": 0,
+                    },
+                    {
+                        "name": "file.txt",
+                        "type": "FILE",
+                        "permission": "644",
+                        "owner": "user",
+                        "group": "group",
+                        "size": 100,
+                        "modified": "2025-01-01",
+                        "replication": 3,
+                        "permissions": "rw-r--r--",
+                        "block_size": 134217728,
+                    },
+                ]
+            )
         elif path == "/demo/subdir":
-            return pd.DataFrame([
-                {"name": "nested_file.txt", "type": "FILE", "permission": "644", "owner": "user",
-                 "group": "group", "size": 50, "modified": "2025-01-01", "replication": 3,
-                 "permissions": "rw-r--r--", "block_size": 134217728},
-            ])
+            return pd.DataFrame(
+                [
+                    {
+                        "name": "nested_file.txt",
+                        "type": "FILE",
+                        "permission": "644",
+                        "owner": "user",
+                        "group": "group",
+                        "size": 50,
+                        "modified": "2025-01-01",
+                        "replication": 3,
+                        "permissions": "rw-r--r--",
+                        "block_size": 134217728,
+                    },
+                ]
+            )
         else:
             return pd.DataFrame()
 
@@ -39,6 +71,7 @@ def test_chmod_recursive(monkeypatch, magics_instance):
     def mock_execute(method, operation, path, **params):
         execute_calls.append((method, operation, path, params))
         return {}  # Return empty dict for SETPERMISSION
+
     monkeypatch.setattr(magics_instance.client, "execute", mock_execute)
 
     # Test chmod -R
@@ -55,9 +88,11 @@ def test_chmod_recursive(monkeypatch, magics_instance):
 
 def test_chmod_non_recursive(monkeypatch, magics_instance):
     """Test the chmod command without -R flag."""
+
     # Mock client.execute
     def mock_execute(method, operation, path, **params):
         return {}
+
     monkeypatch.setattr(magics_instance.client, "execute", mock_execute)
 
     # Test chmod without -R
@@ -67,23 +102,55 @@ def test_chmod_non_recursive(monkeypatch, magics_instance):
 
 def test_chown_recursive(monkeypatch, magics_instance):
     """Test the chown -R command for recursive owner/group changes."""
+
     # Mock _format_ls to return different data based on path
     def mock_format_ls(path):
         if path == "/demo":
-            return pd.DataFrame([
-                {"name": "subdir", "type": "DIR", "permission": "755", "owner": "olduser",
-                 "group": "oldgroup", "size": 0, "modified": "2025-01-01", "replication": 0,
-                 "permissions": "rwxr-xr-x", "block_size": 0},
-                {"name": "file.txt", "type": "FILE", "permission": "644", "owner": "olduser",
-                 "group": "oldgroup", "size": 100, "modified": "2025-01-01", "replication": 3,
-                 "permissions": "rw-r--r--", "block_size": 134217728},
-            ])
+            return pd.DataFrame(
+                [
+                    {
+                        "name": "subdir",
+                        "type": "DIR",
+                        "permission": "755",
+                        "owner": "olduser",
+                        "group": "oldgroup",
+                        "size": 0,
+                        "modified": "2025-01-01",
+                        "replication": 0,
+                        "permissions": "rwxr-xr-x",
+                        "block_size": 0,
+                    },
+                    {
+                        "name": "file.txt",
+                        "type": "FILE",
+                        "permission": "644",
+                        "owner": "olduser",
+                        "group": "oldgroup",
+                        "size": 100,
+                        "modified": "2025-01-01",
+                        "replication": 3,
+                        "permissions": "rw-r--r--",
+                        "block_size": 134217728,
+                    },
+                ]
+            )
         elif path == "/demo/subdir":
-            return pd.DataFrame([
-                {"name": "nested_file.txt", "type": "FILE", "permission": "644", "owner": "olduser",
-                 "group": "oldgroup", "size": 50, "modified": "2025-01-01", "replication": 3,
-                 "permissions": "rw-r--r--", "block_size": 134217728},
-            ])
+            return pd.DataFrame(
+                [
+                    {
+                        "name": "nested_file.txt",
+                        "type": "FILE",
+                        "permission": "644",
+                        "owner": "olduser",
+                        "group": "oldgroup",
+                        "size": 50,
+                        "modified": "2025-01-01",
+                        "replication": 3,
+                        "permissions": "rw-r--r--",
+                        "block_size": 134217728,
+                    },
+                ]
+            )
         else:
             return pd.DataFrame()
 
@@ -91,9 +158,11 @@ def test_chown_recursive(monkeypatch, magics_instance):
 
     # Mock client.execute to track calls
     execute_calls = []
+
     def mock_execute(method, operation, path, **params):
         execute_calls.append((method, operation, path, params))
         return {}
+
     monkeypatch.setattr(magics_instance.client, "execute", mock_execute)
 
     # Test chown -R with owner:group
@@ -110,14 +179,26 @@ def test_chown_recursive(monkeypatch, magics_instance):
 
 def test_chown_recursive_owner_only(monkeypatch, magics_instance):
     """Test the chown -R command with only owner (no group)."""
+
     # Mock _format_ls to return a simple file structure
     def mock_format_ls(path):
         if path == "/demo":
-            return pd.DataFrame([
-                {"name": "file.txt", "type": "FILE", "permission": "644", "owner": "olduser",
-                 "group": "oldgroup", "size": 100, "modified": "2025-01-01", "replication": 3,
-                 "permissions": "rw-r--r--", "block_size": 134217728},
-            ])
+            return pd.DataFrame(
+                [
+                    {
+                        "name": "file.txt",
+                        "type": "FILE",
+                        "permission": "644",
+                        "owner": "olduser",
+                        "group": "oldgroup",
+                        "size": 100,
+                        "modified": "2025-01-01",
+                        "replication": 3,
+                        "permissions": "rw-r--r--",
+                        "block_size": 134217728,
+                    },
+                ]
+            )
         else:
             return pd.DataFrame()
 
@@ -125,9 +206,11 @@ def test_chown_recursive_owner_only(monkeypatch, magics_instance):
 
     # Mock client.execute to track calls
     execute_calls = []
+
     def mock_execute(method, operation, path, **params):
         execute_calls.append((method, operation, path, params))
         return {}
+
     monkeypatch.setattr(magics_instance.client, "execute", mock_execute)
 
     # Test chown -R with owner only (no group)
@@ -142,9 +225,11 @@ def test_chown_recursive_owner_only(monkeypatch, magics_instance):
 
 def test_chown_non_recursive(monkeypatch, magics_instance):
     """Test the chown command without -R flag."""
+
     # Mock client.execute
     def mock_execute(method, operation, path, **params):
         return {}
+
     monkeypatch.setattr(magics_instance.client, "execute", mock_execute)
 
     # Test chown without -R
@@ -163,7 +248,7 @@ def client():
         webhdfs_api="/api",
         auth_user="user",
         auth_password="pass",
-        verify_ssl=False
+        verify_ssl=False,
     )
 
 
@@ -171,7 +256,7 @@ def test_chmod_command_non_recursive(client):
     """Test ChmodCommand.execute without recursion."""
     chmod_cmd = ChmodCommand(client)
 
-    with patch.object(client, 'execute') as mock_execute:
+    with patch.object(client, "execute") as mock_execute:
         mock_execute.return_value = {}
 
         result = chmod_cmd.execute("/test/file.txt", "644", recursive=False)
@@ -197,7 +282,7 @@ def test_chmod_command_recursive_with_empty_dir(client):
     def mock_format_ls(path):
         return {"empty_dir": True, "path": path}
 
-    with patch.object(client, 'execute') as mock_execute:
+    with patch.object(client, "execute") as mock_execute:
         mock_execute.return_value = {}
 
         result = chmod_cmd.execute("/empty", "755", recursive=True, format_ls_func=mock_format_ls)
@@ -214,7 +299,7 @@ def test_chmod_command_recursive_with_exception(client):
     def mock_format_ls(path):
         raise Exception("Error listing directory")
 
-    with patch.object(client, 'execute') as mock_execute:
+    with patch.object(client, "execute") as mock_execute:
         mock_execute.return_value = {}
 
         result = chmod_cmd.execute("/test", "755", recursive=True, format_ls_func=mock_format_ls)
@@ -230,7 +315,7 @@ def test_chown_command_non_recursive(client):
     """Test ChownCommand.execute without recursion."""
     chown_cmd = ChownCommand(client)
 
-    with patch.object(client, 'execute') as mock_execute:
+    with patch.object(client, "execute") as mock_execute:
         mock_execute.return_value = {}
 
         result = chown_cmd.execute("/test/file.txt", "hadoop", "supergroup", recursive=False)
@@ -245,7 +330,7 @@ def test_chown_command_owner_only(client):
     """Test ChownCommand.execute with owner only."""
     chown_cmd = ChownCommand(client)
 
-    with patch.object(client, 'execute') as mock_execute:
+    with patch.object(client, "execute") as mock_execute:
         mock_execute.return_value = {}
 
         result = chown_cmd.execute("/test/file.txt", "hadoop", group=None, recursive=False)
@@ -271,7 +356,7 @@ def test_chown_command_recursive_with_empty_dir(client):
     def mock_format_ls(path):
         return {"empty_dir": True, "path": path}
 
-    with patch.object(client, 'execute') as mock_execute:
+    with patch.object(client, "execute") as mock_execute:
         mock_execute.return_value = {}
 
         result = chown_cmd.execute(
@@ -290,7 +375,7 @@ def test_chown_command_recursive_with_exception(client):
     def mock_format_ls(path):
         raise Exception("Error listing directory")
 
-    with patch.object(client, 'execute') as mock_execute:
+    with patch.object(client, "execute") as mock_execute:
         mock_execute.return_value = {}
 
         result = chown_cmd.execute(
@@ -299,4 +384,3 @@ def test_chown_command_recursive_with_exception(client):
 
         # Should still succeed and set owner on root
         assert "Recursive chown user:group applied on /test" in result
-

@@ -69,7 +69,7 @@ def test_format_file_entry_file():
         "modificationTime": 1609459200000,
         "length": 1024,
         "blockSize": 134217728,
-        "replication": 3
+        "replication": 3,
     }
 
     result = format_file_entry(file_status)
@@ -94,7 +94,7 @@ def test_format_file_entry_directory():
         "modificationTime": 1609459200000,
         "length": 0,
         "blockSize": 0,
-        "replication": 0
+        "replication": 0,
     }
 
     result = format_file_entry(dir_status)

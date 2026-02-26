@@ -15,11 +15,7 @@ class ChmodCommand(BaseCommand):
     """Change file/directory permissions."""
 
     def execute(
-        self,
-        path: str,
-        permission: str,
-        recursive: bool = False,
-        format_ls_func: callable = None
+        self, path: str, permission: str, recursive: bool = False, format_ls_func: callable = None
     ) -> str:
         """
         Change permissions on HDFS file or directory.
@@ -51,12 +47,7 @@ class ChmodCommand(BaseCommand):
         self.client.execute("PUT", "SETPERMISSION", path, permission=permission)
         return f"Permission {permission} set for {path}"
 
-    def _set_permission_recursive(
-        self,
-        path: str,
-        permission: str,
-        format_ls_func: callable
-    ):
+    def _set_permission_recursive(self, path: str, permission: str, format_ls_func: callable):
         """Recursively apply permission changes."""
         self._set_permission(path, permission)
         try:
@@ -85,7 +76,7 @@ class ChownCommand(BaseCommand):
         owner: str,
         group: Optional[str] = None,
         recursive: bool = False,
-        format_ls_func: callable = None
+        format_ls_func: callable = None,
     ) -> str:
         """
         Change owner and group on HDFS file or directory.
@@ -113,22 +104,13 @@ class ChownCommand(BaseCommand):
         else:
             return self._set_owner(path, owner, group)
 
-    def _set_owner(
-        self,
-        path: str,
-        owner: str,
-        group: Optional[str] = None
-    ) -> str:
+    def _set_owner(self, path: str, owner: str, group: Optional[str] = None) -> str:
         """Set owner and group for a single file or directory."""
         self.client.execute("PUT", "SETOWNER", path, owner=owner, group=group)
         return f"Owner {owner}:{group} set for {path}"
 
     def _recursive_set_owner(
-        self,
-        path: str,
-        owner: str,
-        group: Optional[str],
-        format_ls_func: callable
+        self, path: str, owner: str, group: Optional[str], format_ls_func: callable
     ):
         """Recursively apply owner and group changes."""
         self._set_owner(path, owner, group)

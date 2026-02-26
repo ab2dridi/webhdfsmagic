@@ -28,6 +28,7 @@ def magics_instance():
 @pytest.fixture
 def mock_requests_get():
     """Create a mock for requests.get with flexible argument handling."""
+
     def create_mock_response(data, status_code=200):
         fake_response = MagicMock()
         fake_response.content = json.dumps(data).encode("utf-8")
@@ -42,6 +43,7 @@ def mock_requests_get():
 @pytest.fixture
 def mock_requests_request():
     """Create a flexible mock for requests.request that accepts all kwargs."""
+
     def create_mock(data, status_code=200):
         fake_response = MagicMock()
         fake_response.content = json.dumps(data).encode("utf-8")

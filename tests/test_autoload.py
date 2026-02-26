@@ -18,10 +18,7 @@ def test_install_autoload_creates_script(tmp_path, monkeypatch):
     startup_dir = tmp_path / ".ipython" / "profile_default" / "startup"
 
     # Mock get_ipython_startup_dir to return temp path
-    monkeypatch.setattr(
-        "webhdfsmagic.install.get_ipython_startup_dir",
-        lambda: str(startup_dir)
-    )
+    monkeypatch.setattr("webhdfsmagic.install.get_ipython_startup_dir", lambda: str(startup_dir))
 
     # Install
     result = install_autoload()
@@ -42,10 +39,7 @@ def test_install_autoload_idempotent(tmp_path, monkeypatch):
     """Test that install_autoload is idempotent."""
     startup_dir = tmp_path / ".ipython" / "profile_default" / "startup"
 
-    monkeypatch.setattr(
-        "webhdfsmagic.install.get_ipython_startup_dir",
-        lambda: str(startup_dir)
-    )
+    monkeypatch.setattr("webhdfsmagic.install.get_ipython_startup_dir", lambda: str(startup_dir))
 
     # Install twice
     result1 = install_autoload()
@@ -63,15 +57,14 @@ def test_install_autoload_handles_errors(monkeypatch):
     """Test that install_autoload handles errors gracefully."""
     # Mock to raise an exception
     monkeypatch.setattr(
-        "webhdfsmagic.install.get_ipython_startup_dir",
-        lambda: "/nonexistent/path/that/will/fail"
+        "webhdfsmagic.install.get_ipython_startup_dir", lambda: "/nonexistent/path/that/will/fail"
     )
 
     # Mock Path.mkdir to raise exception
     def mock_mkdir(*args, **kwargs):
         raise PermissionError("No permission")
 
-    with patch('pathlib.Path.mkdir', side_effect=mock_mkdir):
+    with patch("pathlib.Path.mkdir", side_effect=mock_mkdir):
         result = install_autoload()
         # Should return False but not raise
         assert result is False
@@ -81,10 +74,7 @@ def test_startup_script_content(tmp_path, monkeypatch):
     """Test the content of the generated startup script."""
     startup_dir = tmp_path / ".ipython" / "profile_default" / "startup"
 
-    monkeypatch.setattr(
-        "webhdfsmagic.install.get_ipython_startup_dir",
-        lambda: str(startup_dir)
-    )
+    monkeypatch.setattr("webhdfsmagic.install.get_ipython_startup_dir", lambda: str(startup_dir))
 
     install_autoload()
 
@@ -109,8 +99,8 @@ class TestInstallMain:
 
         from webhdfsmagic.install import main
 
-        with patch('webhdfsmagic.install.install_autoload', return_value=True):
-            with patch('builtins.print') as mock_print:
+        with patch("webhdfsmagic.install.install_autoload", return_value=True):
+            with patch("builtins.print") as mock_print:
                 result = main()
 
                 assert result == 0
@@ -123,8 +113,8 @@ class TestInstallMain:
 
         from webhdfsmagic.install import main
 
-        with patch('webhdfsmagic.install.install_autoload', return_value=False):
-            with patch('builtins.print') as mock_print:
+        with patch("webhdfsmagic.install.install_autoload", return_value=False):
+            with patch("builtins.print") as mock_print:
                 result = main()
 
                 assert result == 1
@@ -138,10 +128,9 @@ class TestInstallMain:
         from webhdfsmagic.install import install_autoload
 
         with patch(
-            'webhdfsmagic.install.get_ipython_startup_dir',
-            side_effect=Exception("No IPython")
+            "webhdfsmagic.install.get_ipython_startup_dir", side_effect=Exception("No IPython")
         ):
-            with patch('sys.stderr'):
+            with patch("sys.stderr"):
                 result = install_autoload()
 
                 assert result is False
@@ -154,8 +143,7 @@ class TestInstallMain:
         from webhdfsmagic.install import install_autoload
 
         with patch(
-            'webhdfsmagic.install.get_ipython_startup_dir',
-            side_effect=Exception("Test error")
+            "webhdfsmagic.install.get_ipython_startup_dir", side_effect=Exception("Test error")
         ):
             old_stderr = sys.stderr
             try:
@@ -173,9 +161,7 @@ class TestInitAutoSetup:
         """Test successful auto-setup on import."""
         from unittest.mock import patch
 
-        with patch(
-            'webhdfsmagic.install.install_autoload', return_value=True
-        ) as mock_install:
+        with patch("webhdfsmagic.install.install_autoload", return_value=True) as mock_install:
             from webhdfsmagic import _setup_autoload
 
             _setup_autoload()
@@ -186,9 +172,7 @@ class TestInitAutoSetup:
         """Test auto-setup handles exceptions silently."""
         from unittest.mock import patch
 
-        with patch(
-            'webhdfsmagic.install.install_autoload', side_effect=Exception("Test error")
-        ):
+        with patch("webhdfsmagic.install.install_autoload", side_effect=Exception("Test error")):
             from webhdfsmagic import _setup_autoload
 
             _setup_autoload()
@@ -200,10 +184,10 @@ class TestInitAutoSetup:
 
         import webhdfsmagic
 
-        with patch('pathlib.Path.exists', return_value=False):
-            with patch('webhdfsmagic.install.install_autoload', return_value=True):
-                with patch('pathlib.Path.touch'):
-                    with patch('pathlib.Path.mkdir'):
+        with patch("pathlib.Path.exists", return_value=False):
+            with patch("webhdfsmagic.install.install_autoload", return_value=True):
+                with patch("pathlib.Path.touch"):
+                    with patch("pathlib.Path.mkdir"):
                         importlib.reload(webhdfsmagic)
 
     def test_auto_setup_skips_if_already_installed(self):
@@ -213,8 +197,8 @@ class TestInitAutoSetup:
 
         import webhdfsmagic
 
-        with patch('pathlib.Path.exists', return_value=True):
-            with patch('webhdfsmagic.install.install_autoload'):
+        with patch("pathlib.Path.exists", return_value=True):
+            with patch("webhdfsmagic.install.install_autoload"):
                 importlib.reload(webhdfsmagic)
 
     def test_auto_setup_creates_marker_file(self):
@@ -225,16 +209,16 @@ class TestInitAutoSetup:
 
         import webhdfsmagic
 
-        with patch('pathlib.Path.exists', return_value=False):
-            with patch('webhdfsmagic.install.install_autoload', return_value=True):
+        with patch("pathlib.Path.exists", return_value=False):
+            with patch("webhdfsmagic.install.install_autoload", return_value=True):
                 mock_marker = MagicMock()
-                with patch('pathlib.Path.home') as mock_home:
-                    mock_home.return_value = Path('/fake/home')
-                    with patch('pathlib.Path.mkdir'):
-                        with patch('pathlib.Path.touch'):
+                with patch("pathlib.Path.home") as mock_home:
+                    mock_home.return_value = Path("/fake/home")
+                    with patch("pathlib.Path.mkdir"):
+                        with patch("pathlib.Path.touch"):
                             # Patch the marker file path
                             with patch.object(
-                                Path, '__truediv__', side_effect=lambda self, other: mock_marker
+                                Path, "__truediv__", side_effect=lambda self, other: mock_marker
                             ):
                                 try:
                                     importlib.reload(webhdfsmagic)
@@ -246,7 +230,7 @@ class TestInitAutoSetup:
         from unittest.mock import patch
 
         # Test that if __name__ == "__main__" block works
-        with patch('webhdfsmagic.install.main', return_value=0) as mock_main:
+        with patch("webhdfsmagic.install.main", return_value=0) as mock_main:
             # This would normally be executed via `python -m webhdfsmagic.install`
             # We just verify the main function is callable
             result = mock_main()

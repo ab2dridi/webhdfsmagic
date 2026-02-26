@@ -193,7 +193,7 @@ class TestCatCommandParquetFormatting:
     def test_format_parquet_basic(self, mock_get, cat_command):
         """Test basic Parquet formatting."""
         # Mock file size check to return small file (< 100 MB)
-        with patch.object(cat_command, '_get_file_size', return_value=1024):
+        with patch.object(cat_command, "_get_file_size", return_value=1024):
             # Create a simple parquet file in memory
             df = pd.DataFrame({"name": ["Alice", "Bob"], "age": [25, 30]})
             buffer = io.BytesIO()
@@ -217,11 +217,8 @@ class TestCatCommandParquetFormatting:
     def test_format_parquet_with_line_limit(self, mock_get, cat_command):
         """Test Parquet formatting with line limit."""
         # Mock file size check
-        with patch.object(cat_command, '_get_file_size', return_value=2048):
-            df = pd.DataFrame({
-                "id": [1, 2, 3, 4, 5],
-                "value": ["a", "b", "c", "d", "e"]
-            })
+        with patch.object(cat_command, "_get_file_size", return_value=2048):
+            df = pd.DataFrame({"id": [1, 2, 3, 4, 5], "value": ["a", "b", "c", "d", "e"]})
             buffer = io.BytesIO()
             df.to_parquet(buffer, engine="pyarrow")
             parquet_content = buffer.getvalue()
@@ -242,7 +239,7 @@ class TestCatCommandParquetFormatting:
     def test_format_parquet_pandas_format(self, mock_get, cat_command):
         """Test Parquet with pandas format output."""
         # Mock file size check
-        with patch.object(cat_command, '_get_file_size', return_value=512):
+        with patch.object(cat_command, "_get_file_size", return_value=512):
             df = pd.DataFrame({"name": ["Alice"], "age": [25]})
             buffer = io.BytesIO()
             df.to_parquet(buffer, engine="pyarrow")
@@ -264,7 +261,7 @@ class TestCatCommandParquetFormatting:
     def test_format_parquet_polars_format(self, mock_get, cat_command):
         """Test Parquet with polars format output (shows schema)."""
         # Mock file size check
-        with patch.object(cat_command, '_get_file_size', return_value=512):
+        with patch.object(cat_command, "_get_file_size", return_value=512):
             df = pd.DataFrame({"name": ["Alice"], "age": [25]})
             buffer = io.BytesIO()
             df.to_parquet(buffer, engine="pyarrow")
@@ -361,6 +358,7 @@ class TestCatEdgeCasesForCoverage:
         from unittest.mock import Mock
 
         from webhdfsmagic.commands.file_ops import CatCommand
+
         mock_client = Mock()
         cat_cmd = CatCommand(mock_client)
 
@@ -373,6 +371,7 @@ class TestCatEdgeCasesForCoverage:
         from unittest.mock import Mock
 
         from webhdfsmagic.commands.file_ops import CatCommand
+
         mock_client = Mock()
         cat_cmd = CatCommand(mock_client)
 
@@ -402,12 +401,10 @@ class TestCatFormatMethods:
 
     def test_format_csv_with_truncation_notice(self, cat_command):
         """Test CSV formatting with truncation notice."""
-        csv_data = "col1,col2,col3\n" + "\n".join(
-            [f"{i},value{i},data{i}" for i in range(20)]
-        )
-        content = csv_data.encode('utf-8')
+        csv_data = "col1,col2,col3\n" + "\n".join([f"{i},value{i},data{i}" for i in range(20)])
+        content = csv_data.encode("utf-8")
 
-        result = cat_command._format_csv(content, num_lines=10, format_type='table')
+        result = cat_command._format_csv(content, num_lines=10, format_type="table")
 
         assert "showing first 10" in result
         assert "col1" in result
@@ -415,9 +412,9 @@ class TestCatFormatMethods:
     def test_format_csv_pandas_format(self, cat_command):
         """Test CSV formatting with pandas format."""
         csv_data = "name,age,city\nAlice,30,NYC\nBob,25,LA"
-        content = csv_data.encode('utf-8')
+        content = csv_data.encode("utf-8")
 
-        result = cat_command._format_csv(content, num_lines=-1, format_type='pandas')
+        result = cat_command._format_csv(content, num_lines=-1, format_type="pandas")
 
         assert "name" in result
         assert "Alice" in result
@@ -426,7 +423,7 @@ class TestCatFormatMethods:
         """Test CSV formatting error fallback."""
         content = b"\xff\xfe\x00\x00"
 
-        result = cat_command._format_csv(content, num_lines=-1, format_type='table')
+        result = cat_command._format_csv(content, num_lines=-1, format_type="table")
 
         assert "[CSV parsing failed:" in result
 
@@ -438,14 +435,14 @@ class TestCatFormatMethods:
         import pyarrow as pa
         import pyarrow.parquet as pq
 
-        df = pd.DataFrame({'id': range(20), 'value': [f'val_{i}' for i in range(20)]})
+        df = pd.DataFrame({"id": range(20), "value": [f"val_{i}" for i in range(20)]})
 
         buffer = io.BytesIO()
         table = pa.Table.from_pandas(df)
         pq.write_table(table, buffer)
         content = buffer.getvalue()
 
-        result = cat_command._format_parquet(content, num_lines=5, format_type='table')
+        result = cat_command._format_parquet(content, num_lines=5, format_type="table")
 
         assert "showing first 5" in result
         assert "id" in result
@@ -458,16 +455,14 @@ class TestCatFormatMethods:
         import pyarrow as pa
         import pyarrow.parquet as pq
 
-        df = pd.DataFrame({'name': ['Alice', 'Bob'], 'age': [30, 25]})
+        df = pd.DataFrame({"name": ["Alice", "Bob"], "age": [30, 25]})
 
         buffer = io.BytesIO()
         table = pa.Table.from_pandas(df)
         pq.write_table(table, buffer)
         content = buffer.getvalue()
 
-        result = cat_command._format_parquet(
-            content, num_lines=-1, format_type='pandas'
-        )
+        result = cat_command._format_parquet(content, num_lines=-1, format_type="pandas")
 
         assert "name" in result
         assert "Alice" in result
@@ -480,14 +475,14 @@ class TestCatFormatMethods:
         import pyarrow as pa
         import pyarrow.parquet as pq
 
-        df = pd.DataFrame({'col': [1, 2, 3]})
+        df = pd.DataFrame({"col": [1, 2, 3]})
 
         buffer = io.BytesIO()
         table = pa.Table.from_pandas(df)
         pq.write_table(table, buffer)
         content = buffer.getvalue()
 
-        result = cat_command._format_parquet(content, num_lines=-1, format_type='table')
+        result = cat_command._format_parquet(content, num_lines=-1, format_type="table")
 
         assert "col" in result
         assert "showing first" not in result
@@ -498,7 +493,7 @@ class TestCatFormatMethods:
 
         delimiter = cat_command._infer_delimiter(content)
 
-        assert delimiter == ','
+        assert delimiter == ","
 
     def test_infer_delimiter_no_delimiters(self, cat_command):
         """Test delimiter inference with no delimiters."""
@@ -506,7 +501,7 @@ class TestCatFormatMethods:
 
         delimiter = cat_command._infer_delimiter(content)
 
-        assert delimiter == ','
+        assert delimiter == ","
 
     def test_infer_delimiter_all_zero_counts(self, cat_command):
         """Test delimiter inference when all counts are zero."""
@@ -514,127 +509,126 @@ class TestCatFormatMethods:
 
         delimiter = cat_command._infer_delimiter(content)
 
-        assert delimiter == ','
+        assert delimiter == ","
 
     def test_detect_json_file_type(self, cat_command):
         """Test detection of JSON file type."""
         content = b'{"key": "value"}'
 
-        file_type = cat_command._detect_file_type('/data/test.json', content)
+        file_type = cat_command._detect_file_type("/data/test.json", content)
 
-        assert file_type == 'json'
+        assert file_type == "json"
 
     def test_detect_csv_from_content_with_comma(self, cat_command):
         """Test CSV detection from content with commas."""
-        content = b'col1,col2,col3\nval1,val2,val3\n'
+        content = b"col1,col2,col3\nval1,val2,val3\n"
 
-        file_type = cat_command._detect_file_type('/data/test.txt', content)
+        file_type = cat_command._detect_file_type("/data/test.txt", content)
 
-        assert file_type == 'csv'
+        assert file_type == "csv"
 
     def test_detect_csv_from_content_with_tab(self, cat_command):
         """Test CSV detection from content with tabs."""
-        content = b'col1\tcol2\tcol3\nval1\tval2\tval3\n'
+        content = b"col1\tcol2\tcol3\nval1\tval2\tval3\n"
 
-        file_type = cat_command._detect_file_type('/data/test.txt', content)
+        file_type = cat_command._detect_file_type("/data/test.txt", content)
 
-        assert file_type == 'csv'
+        assert file_type == "csv"
 
     def test_detect_csv_from_content_no_newline(self, cat_command):
         """Test CSV detection from content without newline."""
-        content = b'col1,col2,col3'
+        content = b"col1,col2,col3"
 
-        file_type = cat_command._detect_file_type('/data/test.txt', content)
+        file_type = cat_command._detect_file_type("/data/test.txt", content)
 
-        assert file_type == 'csv'
+        assert file_type == "csv"
 
     def test_detect_text_for_non_csv_content(self, cat_command):
         """Test text detection for non-CSV content."""
-        content = b'Just some text without delimiters'
+        content = b"Just some text without delimiters"
 
-        file_type = cat_command._detect_file_type('/data/test.txt', content)
+        file_type = cat_command._detect_file_type("/data/test.txt", content)
 
-        assert file_type == 'text'
+        assert file_type == "text"
 
     def test_detect_handles_exception_in_content_check(self, cat_command):
         """Test detection handles exceptions gracefully."""
-        content = b'\xff\xfe'
+        content = b"\xff\xfe"
 
-        file_type = cat_command._detect_file_type('/data/test.txt', content)
+        file_type = cat_command._detect_file_type("/data/test.txt", content)
 
-        assert file_type == 'text'
+        assert file_type == "text"
 
     def test_execute_with_307_redirect(self, cat_command):
         """Test execute with 307 redirect."""
         from unittest.mock import Mock, patch
 
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             redirect_response = Mock()
             redirect_response.status_code = 307
             redirect_response.headers = {
-                'Location': 'http://datanode:50075/webhdfs/v1/file.txt?op=OPEN'
+                "Location": "http://datanode:50075/webhdfs/v1/file.txt?op=OPEN"
             }
 
             final_response = Mock()
             final_response.status_code = 200
-            final_response.content = b'test content'
+            final_response.content = b"test content"
             final_response.raise_for_status = Mock()
 
             mock_get.side_effect = [redirect_response, final_response]
 
-            result = cat_command.execute('/test.txt')
+            result = cat_command.execute("/test.txt")
 
-            assert 'test content' in result
+            assert "test content" in result
 
     def test_execute_handles_empty_content(self, cat_command):
         """Test execute with empty content."""
         from unittest.mock import Mock, patch
 
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.status_code = 200
-            mock_response.content = b''
+            mock_response.content = b""
             mock_response.raise_for_status = Mock()
 
             mock_get.return_value = mock_response
 
-            result = cat_command.execute('/empty.txt')
+            result = cat_command.execute("/empty.txt")
 
-            assert result == ''
+            assert result == ""
 
     def test_memory_protection_with_partial_read(self, cat_command):
         """Test that partial reads use 50MB memory limit."""
         from unittest.mock import Mock, patch
 
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.status_code = 200
-            mock_response.content = b'line1\nline2\nline3\n'
+            mock_response.content = b"line1\nline2\nline3\n"
             mock_response.raise_for_status = Mock()
             mock_get.return_value = mock_response
 
             # Execute with default num_lines (100) - should use 50MB limit
-            cat_command.execute('/large.txt', num_lines=100)
+            cat_command.execute("/large.txt", num_lines=100)
 
             # Verify the URL contains length parameter for memory protection
             called_url = mock_get.call_args[0][0]
-            assert 'length=52428800' in called_url  # 50 * 1024 * 1024 = 52428800
+            assert "length=52428800" in called_url  # 50 * 1024 * 1024 = 52428800
 
     def test_no_memory_limit_for_full_read(self, cat_command):
         """Test that full reads (num_lines=-1) have no memory limit."""
         from unittest.mock import Mock, patch
 
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.status_code = 200
-            mock_response.content = b'complete file content\n'
+            mock_response.content = b"complete file content\n"
             mock_response.raise_for_status = Mock()
             mock_get.return_value = mock_response
 
             # Execute with num_lines=-1 (read all) - should NOT use limit
-            cat_command.execute('/full.txt', num_lines=-1)
+            cat_command.execute("/full.txt", num_lines=-1)
 
             # Verify the URL does NOT contain length parameter
             called_url = mock_get.call_args[0][0]
-            assert 'length=' not in called_url
-
+            assert "length=" not in called_url

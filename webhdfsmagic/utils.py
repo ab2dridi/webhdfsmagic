@@ -27,9 +27,7 @@ def format_permissions(perm: int) -> str:
         >>> format_permissions(5)
         'r-x'
     """
-    return "".join(
-        ["r" if perm & 4 else "-", "w" if perm & 2 else "-", "x" if perm & 1 else "-"]
-    )
+    return "".join(["r" if perm & 4 else "-", "w" if perm & 2 else "-", "x" if perm & 1 else "-"])
 
 
 def format_full_permissions(permission_int: int) -> str:

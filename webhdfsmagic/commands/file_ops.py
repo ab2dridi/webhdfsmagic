@@ -33,7 +33,7 @@ class CatCommand(BaseCommand):
         num_lines: int = 100,
         allow_redirects: bool = False,
         format_type: Optional[str] = None,
-        raw: bool = False
+        raw: bool = False,
     ) -> str:
         """
         Read and display file content with intelligent formatting.
@@ -53,10 +53,10 @@ class CatCommand(BaseCommand):
         """
         try:
             # Detect file type early for special handling
-            file_type_hint = 'parquet' if file_path.lower().endswith('.parquet') else None
+            file_type_hint = "parquet" if file_path.lower().endswith(".parquet") else None
 
             # For Parquet files, check file size first (they must be fully downloaded)
-            if file_type_hint == 'parquet' and num_lines != -1:
+            if file_type_hint == "parquet" and num_lines != -1:
                 file_size = self._get_file_size(file_path)
                 size_mb = file_size / (1024 * 1024)
 
@@ -73,7 +73,7 @@ class CatCommand(BaseCommand):
             # Calculate max bytes to fetch based on num_lines and file type
             # For Parquet: no limit (binary format requires full file)
             # For text/CSV: limit to 50MB for partial reads
-            if file_type_hint == 'parquet':
+            if file_type_hint == "parquet":
                 max_bytes = None  # Parquet needs full file
             else:
                 max_bytes = None if num_lines == -1 else 50 * 1024 * 1024  # 50 MB
@@ -82,15 +82,15 @@ class CatCommand(BaseCommand):
             content = self._fetch_content(file_path, allow_redirects, max_bytes)
 
             # If raw mode requested, return raw content
-            if raw or format_type == 'raw':
+            if raw or format_type == "raw":
                 return self._format_raw_content(content, num_lines)
 
             # Detect file type and apply smart formatting
             file_type = self._detect_file_type(file_path, content)
 
-            if file_type == 'csv':
+            if file_type == "csv":
                 return self._format_csv(content, num_lines, format_type)
-            elif file_type == 'parquet':
+            elif file_type == "parquet":
                 return self._format_parquet(content, num_lines, format_type)
             else:
                 # Default to raw display for non-structured files
@@ -123,13 +123,10 @@ class CatCommand(BaseCommand):
         response.raise_for_status()
 
         file_status = response.json()
-        return file_status['FileStatus']['length']
+        return file_status["FileStatus"]["length"]
 
     def _fetch_content(
-        self,
-        file_path: str,
-        allow_redirects: bool,
-        max_bytes: Optional[int] = None
+        self, file_path: str, allow_redirects: bool, max_bytes: Optional[int] = None
     ) -> bytes:
         """
         Fetch raw file content from HDFS.
@@ -143,10 +140,7 @@ class CatCommand(BaseCommand):
             File content as bytes
         """
         # Build URL with optional length parameter
-        url = (
-            f"{self.client.knox_url}{self.client.webhdfs_api}"
-            f"{file_path}?op=OPEN"
-        )
+        url = f"{self.client.knox_url}{self.client.webhdfs_api}{file_path}?op=OPEN"
 
         # Add length parameter to limit bytes read from HDFS
         if max_bytes is not None:
@@ -171,32 +165,32 @@ class CatCommand(BaseCommand):
         file_path_lower = file_path.lower()
 
         # Check file extension
-        if file_path_lower.endswith('.csv'):
-            return 'csv'
-        elif file_path_lower.endswith(('.tsv', '.tab')):
-            return 'csv'  # TSV is handled as CSV with different delimiter
-        elif file_path_lower.endswith('.parquet'):
-            return 'parquet'
-        elif file_path_lower.endswith('.json'):
-            return 'json'
+        if file_path_lower.endswith(".csv"):
+            return "csv"
+        elif file_path_lower.endswith((".tsv", ".tab")):
+            return "csv"  # TSV is handled as CSV with different delimiter
+        elif file_path_lower.endswith(".parquet"):
+            return "parquet"
+        elif file_path_lower.endswith(".json"):
+            return "json"
 
         # Try to detect from content (first few bytes)
         try:
             # Check for Parquet magic number
-            if content[:4] == b'PAR1':
-                return 'parquet'
+            if content[:4] == b"PAR1":
+                return "parquet"
 
             # Try to decode as text and check for CSV patterns
-            text_sample = content[:1000].decode('utf-8', errors='ignore')
-            if ',' in text_sample or '\t' in text_sample:
+            text_sample = content[:1000].decode("utf-8", errors="ignore")
+            if "," in text_sample or "\t" in text_sample:
                 # Count delimiters in first line
-                first_line = text_sample.split('\n')[0] if '\n' in text_sample else text_sample
-                if first_line.count(',') >= 1 or first_line.count('\t') >= 1:
-                    return 'csv'
+                first_line = text_sample.split("\n")[0] if "\n" in text_sample else text_sample
+                if first_line.count(",") >= 1 or first_line.count("\t") >= 1:
+                    return "csv"
         except Exception:
             pass
 
-        return 'text'
+        return "text"
 
     def _format_raw_content(self, content: bytes, num_lines: int) -> str:
         """Format content as raw text."""
@@ -212,17 +206,14 @@ class CatCommand(BaseCommand):
         """Format CSV content as a table."""
         try:
             # Decode content
-            text = content.decode('utf-8', errors='replace')
+            text = content.decode("utf-8", errors="replace")
 
             # Try to infer delimiter
             delimiter = self._infer_delimiter(text)
 
             # Parse CSV into DataFrame
             df = pd.read_csv(
-                io.StringIO(text),
-                sep=delimiter,
-                on_bad_lines='skip',
-                encoding_errors='replace'
+                io.StringIO(text), sep=delimiter, on_bad_lines="skip", encoding_errors="replace"
             )
 
             # Limit rows if requested
@@ -233,31 +224,26 @@ class CatCommand(BaseCommand):
                 truncated = False
 
             # Return as Polars DataFrame if requested (convert from pandas)
-            if format_type == 'polars':
+            if format_type == "polars":
                 import polars as pl
+
                 df_polars = pl.from_pandas(df)
                 result = str(df_polars)
                 if truncated:
-                    total_lines = len(content.decode('utf-8', errors='replace').splitlines())
+                    total_lines = len(content.decode("utf-8", errors="replace").splitlines())
                     result += f"\n\n... (showing first {num_lines} of {total_lines} rows)"
                 return result
 
             # Return as pandas DataFrame if requested
-            if format_type == 'pandas':
+            if format_type == "pandas":
                 return str(df)
 
             # Format as table
-            table = tabulate(
-                df,
-                headers='keys',
-                tablefmt='grid',
-                showindex=False,
-                maxcolwidths=50
-            )
+            table = tabulate(df, headers="keys", tablefmt="grid", showindex=False, maxcolwidths=50)
 
             # Add truncation notice if needed
             if truncated:
-                total_lines = len(content.decode('utf-8', errors='replace').splitlines())
+                total_lines = len(content.decode("utf-8", errors="replace").splitlines())
                 table += f"\n\n... (showing first {num_lines} of {total_lines} rows)"
 
             return table
@@ -283,7 +269,7 @@ class CatCommand(BaseCommand):
                 truncated = False
 
             # Return as Polars DataFrame if requested (shows schema and types)
-            if format_type == 'polars':
+            if format_type == "polars":
                 result = str(df)
                 if truncated:
                     result += f"\n\n... (showing first {num_lines} rows)"
@@ -293,16 +279,12 @@ class CatCommand(BaseCommand):
             df_pandas = df.to_pandas()
 
             # Return as pandas DataFrame if requested
-            if format_type == 'pandas':
+            if format_type == "pandas":
                 return str(df_pandas)
 
             # Format as table
             table = tabulate(
-                df_pandas,
-                headers='keys',
-                tablefmt='grid',
-                showindex=False,
-                maxcolwidths=50
+                df_pandas, headers="keys", tablefmt="grid", showindex=False, maxcolwidths=50
             )
 
             # Add truncation notice if needed
@@ -319,10 +301,10 @@ class CatCommand(BaseCommand):
     def _infer_delimiter(self, text: str) -> str:
         """Infer the delimiter used in CSV file."""
         # Get first few lines as sample
-        lines = text.split('\n')[:5]
+        lines = text.split("\n")[:5]
 
         # Count common delimiters
-        delimiters = [',', '\t', ';', '|']
+        delimiters = [",", "\t", ";", "|"]
         counts = {}
 
         for delimiter in delimiters:
@@ -338,7 +320,7 @@ class CatCommand(BaseCommand):
             return max(counts, key=counts.get)
 
         # Default to comma
-        return ','
+        return ","
 
     def _handle_redirect(self, response: requests.Response) -> requests.Response:
         """Handle HTTP 307 redirect and fix Docker internal hostnames."""
@@ -347,23 +329,25 @@ class CatCommand(BaseCommand):
 
         # Fix Docker internal hostnames (12-char hex) -> localhost
         hostname = parsed.hostname
-        if re.match(r'^[0-9a-f]{12}$', hostname):
-            hostname = 'localhost'
+        if re.match(r"^[0-9a-f]{12}$", hostname):
+            hostname = "localhost"
 
         # Ensure user.name is in the query parameters
         query_params = parse_qs(parsed.query)
-        if 'user.name' not in query_params and self.client.auth_user:
-            query_params['user.name'] = [self.client.auth_user]
+        if "user.name" not in query_params and self.client.auth_user:
+            query_params["user.name"] = [self.client.auth_user]
 
         # Reconstruct URL
-        fixed_url = urlunparse((
-            parsed.scheme,
-            f'{hostname}:{parsed.port}' if parsed.port else hostname,
-            parsed.path,
-            parsed.params,
-            urlencode(query_params, doseq=True),
-            parsed.fragment
-        ))
+        fixed_url = urlunparse(
+            (
+                parsed.scheme,
+                f"{hostname}:{parsed.port}" if parsed.port else hostname,
+                parsed.path,
+                parsed.params,
+                urlencode(query_params, doseq=True),
+                parsed.fragment,
+            )
+        )
 
         return requests.get(
             fixed_url,
@@ -376,11 +360,7 @@ class GetCommand(BaseCommand):
     """Download files from HDFS to local filesystem."""
 
     def execute(
-        self,
-        hdfs_source: str,
-        local_dest: str,
-        format_ls_func: callable,
-        threads: int = 1
+        self, hdfs_source: str, local_dest: str, format_ls_func: callable, threads: int = 1
     ) -> str:
         """
         Download file(s) from HDFS.
@@ -411,7 +391,7 @@ class GetCommand(BaseCommand):
         local_dest: str,
         local_dest_expanded: str,
         format_ls_func: callable,
-        threads: int = 1
+        threads: int = 1,
     ) -> str:
         """Download multiple files matching pattern, optionally in parallel."""
         base_dir = os.path.dirname(hdfs_pattern)
@@ -428,9 +408,7 @@ class GetCommand(BaseCommand):
         for _, row in matching_files.iterrows():
             file_name = row["name"]
             hdfs_file = base_dir.rstrip("/") + "/" + file_name
-            final_local_dest = self._resolve_local_path(
-                local_dest, local_dest_expanded, file_name
-            )
+            final_local_dest = self._resolve_local_path(local_dest, local_dest_expanded, file_name)
             # Ensure parent directory exists
             parent_dir = os.path.dirname(final_local_dest)
             if parent_dir and not os.path.exists(parent_dir):
@@ -464,7 +442,9 @@ class GetCommand(BaseCommand):
         with ThreadPoolExecutor(max_workers=threads) as executor:
             future_to_task = {
                 executor.submit(self._download_file, hdfs_file, final_local_dest): (
-                    file_name, final_local_dest, hdfs_file
+                    file_name,
+                    final_local_dest,
+                    hdfs_file,
                 )
                 for hdfs_file, final_local_dest, file_name in download_tasks
             }
@@ -476,28 +456,19 @@ class GetCommand(BaseCommand):
                     responses.append(f"{file_name} downloaded to {final_local_dest}")
                 except Exception as e:
                     tb = traceback.format_exc()
-                    responses.append(
-                        f"Error downloading {file_name}: {str(e)}\nTraceback:\n{tb}"
-                    )
+                    responses.append(f"Error downloading {file_name}: {str(e)}\nTraceback:\n{tb}")
         if responses:
             return "\n" + "\n".join(responses) + "\n"
         return ""
 
-    def _download_single(
-        self,
-        hdfs_source: str,
-        local_dest: str,
-        local_dest_expanded: str
-    ) -> str:
+    def _download_single(self, hdfs_source: str, local_dest: str, local_dest_expanded: str) -> str:
         """Download single file."""
         try:
             # Expand ~ in local_dest to handle home directory
             final_local_dest = local_dest_expanded
 
             if local_dest == ".":
-                final_local_dest = os.path.join(
-                    os.getcwd(), os.path.basename(hdfs_source)
-                )
+                final_local_dest = os.path.join(os.getcwd(), os.path.basename(hdfs_source))
             elif local_dest in ["~", "~/"]:
                 final_local_dest = os.path.join(
                     os.path.expanduser("~"), os.path.basename(hdfs_source)
@@ -520,12 +491,7 @@ class GetCommand(BaseCommand):
             tb = traceback.format_exc()
             return f"Error: {str(e)}\nTraceback:\n{tb}"
 
-    def _resolve_local_path(
-        self,
-        local_dest: str,
-        local_dest_expanded: str,
-        file_name: str
-    ) -> str:
+    def _resolve_local_path(self, local_dest: str, local_dest_expanded: str, file_name: str) -> str:
         """Resolve final local destination path for wildcard downloads."""
         if local_dest in [".", "~", "~/"]:
             base = os.getcwd() if local_dest == "." else os.path.expanduser("~")
@@ -575,23 +541,25 @@ class GetCommand(BaseCommand):
 
         # Fix Docker internal hostnames
         hostname = parsed.hostname
-        if re.match(r'^[0-9a-f]{12}$', hostname):
-            hostname = 'localhost'
+        if re.match(r"^[0-9a-f]{12}$", hostname):
+            hostname = "localhost"
 
         # Ensure user.name is in the query parameters
         query_params = parse_qs(parsed.query)
-        if 'user.name' not in query_params and self.client.auth_user:
-            query_params['user.name'] = [self.client.auth_user]
+        if "user.name" not in query_params and self.client.auth_user:
+            query_params["user.name"] = [self.client.auth_user]
 
         # Reconstruct URL
-        fixed_url = urlunparse((
-            parsed.scheme,
-            f'{hostname}:{parsed.port}' if parsed.port else hostname,
-            parsed.path,
-            parsed.params,
-            urlencode(query_params, doseq=True),
-            parsed.fragment
-        ))
+        fixed_url = urlunparse(
+            (
+                parsed.scheme,
+                f"{hostname}:{parsed.port}" if parsed.port else hostname,
+                parsed.path,
+                parsed.params,
+                urlencode(query_params, doseq=True),
+                parsed.fragment,
+            )
+        )
 
         return requests.get(
             fixed_url,
@@ -613,26 +581,21 @@ class PutCommand(BaseCommand):
         hostname = parsed.hostname
 
         # Fix Docker internal hostnames (12-character hex IDs)
-        if hostname and re.match(r'^[0-9a-f]{12}$', hostname):
-            hostname = 'localhost'
+        if hostname and re.match(r"^[0-9a-f]{12}$", hostname):
+            hostname = "localhost"
 
         # Ensure user.name is in the query parameters
         query_params = parse_qs(parsed.query)
-        if 'user.name' not in query_params and self.client.auth_user:
-            query_params['user.name'] = [self.client.auth_user]
+        if "user.name" not in query_params and self.client.auth_user:
+            query_params["user.name"] = [self.client.auth_user]
 
         # Reconstruct URL
-        netloc = f'{hostname}:{parsed.port}' if parsed.port else hostname
+        netloc = f"{hostname}:{parsed.port}" if parsed.port else hostname
         query_string = urlencode(query_params, doseq=True)
 
-        return urlunparse((
-            parsed.scheme,
-            netloc,
-            parsed.path,
-            parsed.params,
-            query_string,
-            parsed.fragment
-        ))
+        return urlunparse(
+            (parsed.scheme, netloc, parsed.path, parsed.params, query_string, parsed.fragment)
+        )
 
     def execute(self, local_pattern: str, hdfs_dest: str, threads: int = 1) -> str:
         """
@@ -671,9 +634,7 @@ class PutCommand(BaseCommand):
             return "\n" + "\n".join(responses) + "\n"
         return ""
 
-    def _upload_multiple_parallel(
-        self, local_files: list, hdfs_dest: str, threads: int
-    ) -> str:
+    def _upload_multiple_parallel(self, local_files: list, hdfs_dest: str, threads: int) -> str:
         """Upload files in parallel using ThreadPoolExecutor."""
         responses = []
         with ThreadPoolExecutor(max_workers=threads) as executor:
@@ -701,10 +662,7 @@ class PutCommand(BaseCommand):
             init_url = f"{self.client.knox_url}{self.client.webhdfs_api}{hdfs_dest}"
             if hdfs_dest.endswith("/") or hdfs_dest.endswith("."):
                 basename = os.path.basename(local_file)
-                init_url = (
-                    f"{self.client.knox_url}{self.client.webhdfs_api}"
-                    f"{hdfs_dest}{basename}"
-                )
+                init_url = f"{self.client.knox_url}{self.client.webhdfs_api}{hdfs_dest}{basename}"
 
             init_response = requests.put(
                 init_url,
@@ -730,15 +688,9 @@ class PutCommand(BaseCommand):
                 if upload_response.status_code in [200, 201]:
                     return f"{local_file} uploaded to {hdfs_dest}"
                 else:
-                    return (
-                        f"Upload failed for {local_file}, "
-                        f"status: {upload_response.status_code}"
-                    )
+                    return f"Upload failed for {local_file}, status: {upload_response.status_code}"
             else:
-                return (
-                    f"Initiation failed for {local_file}, "
-                    f"status: {init_response.status_code}"
-                )
+                return f"Initiation failed for {local_file}, status: {init_response.status_code}"
         except Exception as e:
             tb = traceback.format_exc()
             return f"Error uploading {local_file}: {str(e)}\nTraceback:\n{tb}"

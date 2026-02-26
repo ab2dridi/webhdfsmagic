@@ -186,7 +186,7 @@ def test_config_priority_webhdfsmagic_over_sparkmagic():
             "kernel_python_credentials": {
                 "url": "https://sparkmagic-knox:8443/gateway/default/livy/v1"
             },
-            "verify_ssl": True
+            "verify_ssl": True,
         }
         with open(sparkmagic_config_file, "w") as f:
             json.dump(sparkmagic_config, f, indent=2)
@@ -254,9 +254,9 @@ def test_fallback_to_sparkmagic_config():
             "kernel_python_credentials": {
                 "url": "https://sparkmagic-host:8443/gateway/cluster/livy/v1",
                 "username": "sparkuser",
-                "password": "sparkpass"
+                "password": "sparkpass",
             },
-            "verify_ssl": False
+            "verify_ssl": False,
         }
         with open(sparkmagic_config_file, "w") as f:
             json.dump(sparkmagic_config, f, indent=2)
@@ -356,9 +356,9 @@ def test_sparkmagic_config_with_custom_livy_endpoint():
                 "username": "user",
                 "password": "password",
                 "url": "https://hostname:port/gateway/default/livy_for_spark3",
-                "auth": "Basic_Access"
+                "auth": "Basic_Access",
             },
-            "verify_ssl": False
+            "verify_ssl": False,
         }
         with open(sparkmagic_config_file, "w") as f:
             json.dump(sparkmagic_config, f, indent=2)
@@ -412,17 +412,17 @@ def test_sparkmagic_config_variations():
         {
             "name": "livy/v1 endpoint",
             "url": "https://host1:8443/gateway/cluster/livy/v1",
-            "expected": "https://host1:8443/gateway/cluster/livy/webhdfs/v1"
+            "expected": "https://host1:8443/gateway/cluster/livy/webhdfs/v1",
         },
         {
             "name": "livy_for_spark3 endpoint",
             "url": "https://host2:8443/gateway/default/livy_for_spark3",
-            "expected": "https://host2:8443/gateway/default/webhdfs/v1"
+            "expected": "https://host2:8443/gateway/default/webhdfs/v1",
         },
         {
             "name": "livy endpoint without version",
             "url": "https://host3:8443/gateway/production/livy",
-            "expected": "https://host3:8443/gateway/production/webhdfs/v1"
+            "expected": "https://host3:8443/gateway/production/webhdfs/v1",
         },
     ]
 
@@ -437,7 +437,7 @@ def test_sparkmagic_config_variations():
                 "kernel_python_credentials": {
                     "username": "testuser",
                     "password": "testpass",
-                    "url": test_case["url"]
+                    "url": test_case["url"],
                 }
             }
             with open(sparkmagic_config_file, "w") as f:
@@ -448,8 +448,9 @@ def test_sparkmagic_config_variations():
             magics = WebHDFSMagics(shell)
 
             # Verify transformation
-            assert magics.knox_url == test_case["expected"], \
+            assert magics.knox_url == test_case["expected"], (
                 f"Expected {test_case['expected']}, got {magics.knox_url}"
+            )
             print(f"    ✅ {test_case['url']} → {magics.knox_url}")
 
     finally:
@@ -577,10 +578,7 @@ def test_verify_ssl_nonexistent_cert():
 
     try:
         config_dir.mkdir(parents=True, exist_ok=True)
-        test_config = {
-            "knox_url": "https://test:8443",
-            "verify_ssl": "/nonexistent/cert.pem"
-        }
+        test_config = {"knox_url": "https://test:8443", "verify_ssl": "/nonexistent/cert.pem"}
         with open(config_file, "w") as f:
             json.dump(test_config, f, indent=2)
 
@@ -615,7 +613,7 @@ def test_verify_ssl_unexpected_type():
         config_dir.mkdir(parents=True, exist_ok=True)
         test_config = {
             "knox_url": "https://test:8443",
-            "verify_ssl": 123  # Invalid type
+            "verify_ssl": 123,  # Invalid type
         }
         with open(config_file, "w") as f:
             json.dump(test_config, f, indent=2)
@@ -663,4 +661,3 @@ def test_transform_url_without_final_segment():
 
 if __name__ == "__main__":
     main()
-

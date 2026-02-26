@@ -257,12 +257,30 @@ def test_get_wildcard_to_directory_with_dot(monkeypatch, magics_instance, tmp_pa
     dest_dir.mkdir()
 
     # Mock the ls response to return multiple files
-    fake_ls_data = pd.DataFrame([
-        {"name": "file1.csv", "type": "FILE", "permission": "644", "owner": "user",
-         "group": "group", "size": 100, "modified": "2025-01-01", "replication": 3},
-        {"name": "file2.csv", "type": "FILE", "permission": "644", "owner": "user",
-         "group": "group", "size": 200, "modified": "2025-01-01", "replication": 3},
-    ])
+    fake_ls_data = pd.DataFrame(
+        [
+            {
+                "name": "file1.csv",
+                "type": "FILE",
+                "permission": "644",
+                "owner": "user",
+                "group": "group",
+                "size": 100,
+                "modified": "2025-01-01",
+                "replication": 3,
+            },
+            {
+                "name": "file2.csv",
+                "type": "FILE",
+                "permission": "644",
+                "owner": "user",
+                "group": "group",
+                "size": 200,
+                "modified": "2025-01-01",
+                "replication": 3,
+            },
+        ]
+    )
 
     # Mock file content
     fake_content = b"test content from HDFS"
@@ -281,6 +299,7 @@ def test_get_wildcard_to_directory_with_dot(monkeypatch, magics_instance, tmp_pa
     # Test with wildcard and /. notation
     import io
     import sys
+
     captured = io.StringIO()
     sys_stdout = sys.stdout
     sys.stdout = captured
@@ -305,12 +324,30 @@ def test_get_wildcard_to_nonexistent_directory(monkeypatch, magics_instance, tmp
     dest_dir = tmp_path / "new_directory"
 
     # Mock the ls response to return multiple files
-    fake_ls_data = pd.DataFrame([
-        {"name": "data1.csv", "type": "FILE", "permission": "644", "owner": "user",
-         "group": "group", "size": 100, "modified": "2025-01-01", "replication": 3},
-        {"name": "data2.csv", "type": "FILE", "permission": "644", "owner": "user",
-         "group": "group", "size": 200, "modified": "2025-01-01", "replication": 3},
-    ])
+    fake_ls_data = pd.DataFrame(
+        [
+            {
+                "name": "data1.csv",
+                "type": "FILE",
+                "permission": "644",
+                "owner": "user",
+                "group": "group",
+                "size": 100,
+                "modified": "2025-01-01",
+                "replication": 3,
+            },
+            {
+                "name": "data2.csv",
+                "type": "FILE",
+                "permission": "644",
+                "owner": "user",
+                "group": "group",
+                "size": 200,
+                "modified": "2025-01-01",
+                "replication": 3,
+            },
+        ]
+    )
 
     # Mock file content
     fake_content = b"test data"
@@ -329,6 +366,7 @@ def test_get_wildcard_to_nonexistent_directory(monkeypatch, magics_instance, tmp
     # Test with wildcard to non-existent directory
     import io
     import sys
+
     captured = io.StringIO()
     sys_stdout = sys.stdout
     sys.stdout = captured
@@ -353,12 +391,30 @@ def test_get_wildcard_to_current_directory(monkeypatch, magics_instance, tmp_pat
     monkeypatch.chdir(tmp_path)
 
     # Mock the ls response to return multiple files
-    fake_ls_data = pd.DataFrame([
-        {"name": "test1.csv", "type": "FILE", "permission": "644", "owner": "user",
-         "group": "group", "size": 100, "modified": "2025-01-01", "replication": 3},
-        {"name": "test2.csv", "type": "FILE", "permission": "644", "owner": "user",
-         "group": "group", "size": 200, "modified": "2025-01-01", "replication": 3},
-    ])
+    fake_ls_data = pd.DataFrame(
+        [
+            {
+                "name": "test1.csv",
+                "type": "FILE",
+                "permission": "644",
+                "owner": "user",
+                "group": "group",
+                "size": 100,
+                "modified": "2025-01-01",
+                "replication": 3,
+            },
+            {
+                "name": "test2.csv",
+                "type": "FILE",
+                "permission": "644",
+                "owner": "user",
+                "group": "group",
+                "size": 200,
+                "modified": "2025-01-01",
+                "replication": 3,
+            },
+        ]
+    )
 
     # Mock file content
     fake_content = b"test content"
@@ -377,6 +433,7 @@ def test_get_wildcard_to_current_directory(monkeypatch, magics_instance, tmp_pat
     # Test with wildcard to current directory
     import io
     import sys
+
     captured = io.StringIO()
     sys_stdout = sys.stdout
     sys.stdout = captured
@@ -400,14 +457,40 @@ def test_get_wildcard_to_directory_without_slash(monkeypatch, magics_instance, t
     dest_dir.mkdir()
 
     # Mock the ls response to return multiple files
-    fake_ls_data = pd.DataFrame([
-        {"name": "customers.csv", "type": "FILE", "permission": "644", "owner": "demo",
-         "group": "demo", "size": 1024, "modified": "2025-01-01", "replication": 3},
-        {"name": "customers2.csv", "type": "FILE", "permission": "644", "owner": "demo",
-         "group": "demo", "size": 2048, "modified": "2025-01-01", "replication": 3},
-        {"name": "file.csv", "type": "FILE", "permission": "644", "owner": "demo",
-         "group": "demo", "size": 512, "modified": "2025-01-01", "replication": 3},
-    ])
+    fake_ls_data = pd.DataFrame(
+        [
+            {
+                "name": "customers.csv",
+                "type": "FILE",
+                "permission": "644",
+                "owner": "demo",
+                "group": "demo",
+                "size": 1024,
+                "modified": "2025-01-01",
+                "replication": 3,
+            },
+            {
+                "name": "customers2.csv",
+                "type": "FILE",
+                "permission": "644",
+                "owner": "demo",
+                "group": "demo",
+                "size": 2048,
+                "modified": "2025-01-01",
+                "replication": 3,
+            },
+            {
+                "name": "file.csv",
+                "type": "FILE",
+                "permission": "644",
+                "owner": "demo",
+                "group": "demo",
+                "size": 512,
+                "modified": "2025-01-01",
+                "replication": 3,
+            },
+        ]
+    )
 
     # Mock file content
     fake_content = b"demo,data,content"
@@ -426,6 +509,7 @@ def test_get_wildcard_to_directory_without_slash(monkeypatch, magics_instance, t
     # Test with wildcard to directory without trailing /
     import io
     import sys
+
     captured = io.StringIO()
     sys_stdout = sys.stdout
     sys.stdout = captured
@@ -479,14 +563,40 @@ def test_get_wildcard_to_tilde_subdirectory(monkeypatch, magics_instance, tmp_pa
     monkeypatch.setenv("HOME", home_dir)
 
     # Mock the ls response to return multiple files
-    fake_ls_data = pd.DataFrame([
-        {"name": "customers.csv", "type": "FILE", "permission": "644", "owner": "demo",
-         "group": "demo", "size": 1024, "modified": "2025-01-01", "replication": 3},
-        {"name": "file.csv", "type": "FILE", "permission": "644", "owner": "demo",
-         "group": "demo", "size": 512, "modified": "2025-01-01", "replication": 3},
-        {"name": "sales_20251205.csv", "type": "FILE", "permission": "644", "owner": "demo",
-         "group": "demo", "size": 2048, "modified": "2025-01-01", "replication": 3},
-    ])
+    fake_ls_data = pd.DataFrame(
+        [
+            {
+                "name": "customers.csv",
+                "type": "FILE",
+                "permission": "644",
+                "owner": "demo",
+                "group": "demo",
+                "size": 1024,
+                "modified": "2025-01-01",
+                "replication": 3,
+            },
+            {
+                "name": "file.csv",
+                "type": "FILE",
+                "permission": "644",
+                "owner": "demo",
+                "group": "demo",
+                "size": 512,
+                "modified": "2025-01-01",
+                "replication": 3,
+            },
+            {
+                "name": "sales_20251205.csv",
+                "type": "FILE",
+                "permission": "644",
+                "owner": "demo",
+                "group": "demo",
+                "size": 2048,
+                "modified": "2025-01-01",
+                "replication": 3,
+            },
+        ]
+    )
 
     # Mock file content
     fake_content = b"demo data content"
@@ -505,6 +615,7 @@ def test_get_wildcard_to_tilde_subdirectory(monkeypatch, magics_instance, tmp_pa
     # Test with wildcard to ~/test_webhdfs/
     import io
     import sys
+
     captured = io.StringIO()
     sys_stdout = sys.stdout
     sys.stdout = captured
@@ -550,16 +661,16 @@ class TestGetCommandAdvanced:
         """Test file download with 307 redirect."""
         from unittest.mock import Mock, patch
 
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             redirect_response = Mock()
             redirect_response.status_code = 307
             redirect_response.headers = {
-                'Location': 'http://abc123def456:50075/webhdfs/v1/file.txt?op=OPEN'
+                "Location": "http://abc123def456:50075/webhdfs/v1/file.txt?op=OPEN"
             }
 
             final_response = Mock()
             final_response.status_code = 200
-            final_response.iter_content = lambda chunk_size: [b'file content']
+            final_response.iter_content = lambda chunk_size: [b"file content"]
             final_response.raise_for_status = Mock()
 
             mock_get.side_effect = [redirect_response, final_response]
@@ -569,8 +680,8 @@ class TestGetCommandAdvanced:
                 get_command._download_file("/file.txt", local_path)
 
                 assert os.path.exists(local_path)
-                with open(local_path, 'rb') as f:
-                    assert f.read() == b'file content'
+                with open(local_path, "rb") as f:
+                    assert f.read() == b"file content"
 
     def test_handle_redirect_with_docker_hostname(self, get_command):
         """Test redirect handling with Docker internal hostname."""
@@ -581,10 +692,10 @@ class TestGetCommandAdvanced:
         redirect_response = Mock(spec=requests.Response)
         redirect_response.status_code = 307
         redirect_response.headers = {
-            'Location': 'http://abc123def456:50075/webhdfs/v1/file.txt?op=OPEN'
+            "Location": "http://abc123def456:50075/webhdfs/v1/file.txt?op=OPEN"
         }
 
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             final_response = Mock()
             final_response.status_code = 200
             mock_get.return_value = final_response
@@ -592,7 +703,7 @@ class TestGetCommandAdvanced:
             get_command._handle_redirect(redirect_response)
 
             call_args = mock_get.call_args
-            assert 'localhost:50075' in call_args[0][0]
+            assert "localhost:50075" in call_args[0][0]
 
     def test_handle_redirect_adds_username(self, get_command):
         """Test redirect handling adds username to query params."""
@@ -602,16 +713,16 @@ class TestGetCommandAdvanced:
 
         redirect_response = Mock(spec=requests.Response)
         redirect_response.headers = {
-            'Location': 'http://datanode:50075/webhdfs/v1/file.txt?op=OPEN'
+            "Location": "http://datanode:50075/webhdfs/v1/file.txt?op=OPEN"
         }
 
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             mock_get.return_value = Mock()
 
             get_command._handle_redirect(redirect_response)
 
             call_args = mock_get.call_args[0][0]
-            assert 'user.name=testuser' in call_args
+            assert "user.name=testuser" in call_args
 
     def test_download_multiple_with_error(self, get_command):
         """Test multiple file download with error handling."""
@@ -619,12 +730,12 @@ class TestGetCommandAdvanced:
 
         import pandas as pd
 
-        mock_df = pd.DataFrame({'name': ['file1.txt', 'file2.txt']})
+        mock_df = pd.DataFrame({"name": ["file1.txt", "file2.txt"]})
 
         def mock_format_ls(path):
             return mock_df
 
-        with patch.object(get_command, '_download_file') as mock_download:
+        with patch.object(get_command, "_download_file") as mock_download:
             mock_download.side_effect = [None, Exception("Network error")]
 
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -697,16 +808,16 @@ class TestPutCommandAdvanced:
         """Test file upload with 307 redirect."""
         from unittest.mock import Mock, patch
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
             tmp.write("test content")
             tmp_path = tmp.name
 
         try:
-            with patch('requests.put') as mock_put:
+            with patch("requests.put") as mock_put:
                 init_response = Mock()
                 init_response.status_code = 307
                 init_response.headers = {
-                    'Location': 'http://abc123def456:50075/webhdfs/v1/test.txt?op=CREATE'
+                    "Location": "http://abc123def456:50075/webhdfs/v1/test.txt?op=CREATE"
                 }
 
                 upload_response = Mock()
@@ -724,12 +835,12 @@ class TestPutCommandAdvanced:
         """Test upload when initialization fails."""
         from unittest.mock import Mock, patch
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
             tmp.write("test content")
             tmp_path = tmp.name
 
         try:
-            with patch('requests.put') as mock_put:
+            with patch("requests.put") as mock_put:
                 init_response = Mock()
                 init_response.status_code = 500
                 mock_put.return_value = init_response
@@ -745,15 +856,15 @@ class TestPutCommandAdvanced:
         """Test upload failure after successful redirect."""
         from unittest.mock import Mock, patch
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
             tmp.write("test content")
             tmp_path = tmp.name
 
         try:
-            with patch('requests.put') as mock_put:
+            with patch("requests.put") as mock_put:
                 init_response = Mock()
                 init_response.status_code = 307
-                init_response.headers = {'Location': 'http://datanode:50075/file.txt'}
+                init_response.headers = {"Location": "http://datanode:50075/file.txt"}
 
                 upload_response = Mock()
                 upload_response.status_code = 500
@@ -770,17 +881,17 @@ class TestPutCommandAdvanced:
         """Test upload with exception handling."""
         from unittest.mock import patch
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
             tmp.write("test content")
             tmp_path = tmp.name
 
         try:
-            with patch('requests.put') as mock_put:
+            with patch("requests.put") as mock_put:
                 mock_put.side_effect = Exception("Connection timeout")
 
                 result = put_command.execute(tmp_path, "/hdfs/test.txt")
 
-                assert ("Error for" in result or "Error uploading" in result)
+                assert "Error for" in result or "Error uploading" in result
                 assert "Connection timeout" in result
         finally:
             os.unlink(tmp_path)
@@ -867,7 +978,7 @@ class TestFileOpsEdgeCases:
         # Test with file WITHOUT extension so it goes to content detection
         result = cmd._detect_file_type("/test/file_no_extension", mock_content)
         # Should handle exception and return 'text'
-        assert result == 'text'  # Covers lines 123-124
+        assert result == "text"  # Covers lines 123-124
 
     def test_download_multiple_no_matches(self):
         """Test _download_multiple when no files match pattern."""
@@ -883,7 +994,7 @@ class TestFileOpsEdgeCases:
         # Create empty DataFrame to simulate no matches
         empty_df = pd.DataFrame(columns=["name", "type"])
 
-        with patch('pathlib.Path.mkdir'):
+        with patch("pathlib.Path.mkdir"):
             # Pass all required arguments, format_ls_func returns empty DataFrame
             result = cmd._download_multiple("/test/*.txt", "/tmp/", "/tmp", lambda x: empty_df)
             assert "No file" in result  # Covers line 328
@@ -895,8 +1006,8 @@ class TestFileOpsEdgeCases:
         client = mock.MagicMock()
         cmd = GetCommand(client)
 
-        with patch('requests.get', side_effect=Exception("Network error")):
-            with patch('pathlib.Path.mkdir'):
+        with patch("requests.get", side_effect=Exception("Network error")):
+            with patch("pathlib.Path.mkdir"):
                 # Pass all required arguments
                 result = cmd._download_single("/test/file.txt", "/tmp/file.txt", "/tmp/file.txt")
                 assert "Error" in result or "Failed" in result
@@ -911,9 +1022,11 @@ class TestFileOpsEdgeCases:
 
         # Mock response with Docker internal hostname (12-char hex)
         response = mock.MagicMock()
-        response.headers = {"Location": "http://a1b2c3d4e5f6:50075/webhdfs/v1/test/file.txt?op=OPEN"}
+        response.headers = {
+            "Location": "http://a1b2c3d4e5f6:50075/webhdfs/v1/test/file.txt?op=OPEN"
+        }
 
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             mock_get.return_value.status_code = 200
             mock_get.return_value.content = b"test"
 
@@ -931,7 +1044,7 @@ class TestFileOpsEdgeCases:
         client = mock.MagicMock()
         cmd = PutCommand(client)
 
-        with patch('glob.glob', return_value=[]):
+        with patch("glob.glob", return_value=[]):
             result = cmd.execute("/nonexistent/*.txt", "/test/")
             assert "No files match" in result or "No local files" in result
 
@@ -950,14 +1063,19 @@ class TestFileOpsEdgeCases:
         cmd = PutCommand(client)
 
         # Mock file that exists
-        with patch('glob.glob', return_value=["/tmp/test.txt"]):
-            with patch('os.path.basename', return_value='test.txt'):
-                with patch('builtins.open', mock.mock_open(read_data=b'test')):
+        with patch("glob.glob", return_value=["/tmp/test.txt"]):
+            with patch("os.path.basename", return_value="test.txt"):
+                with patch("builtins.open", mock.mock_open(read_data=b"test")):
                     # Mock 307 redirect then 201 success
-                    with patch('requests.put') as mock_put:
+                    with patch("requests.put") as mock_put:
                         mock_put.side_effect = [
-                            mock.MagicMock(status_code=307, headers={"Location": "http://datanode:50075/webhdfs/v1/dest?op=CREATE"}),
-                            mock.MagicMock(status_code=201)
+                            mock.MagicMock(
+                                status_code=307,
+                                headers={
+                                    "Location": "http://datanode:50075/webhdfs/v1/dest?op=CREATE"
+                                },
+                            ),
+                            mock.MagicMock(status_code=201),
                         ]
 
                         result = cmd.execute("/tmp/test.txt", "/dest")
@@ -978,14 +1096,17 @@ class TestFileOpsEdgeCases:
         cmd = GetCommand(client)
 
         # Mock 307 redirect then 200 success
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             mock_get.side_effect = [
-                mock.MagicMock(status_code=307, headers={"Location": "http://datanode:50075/webhdfs/v1/test.txt?op=OPEN"}),
-                mock.MagicMock(status_code=200, content=b"test data")
+                mock.MagicMock(
+                    status_code=307,
+                    headers={"Location": "http://datanode:50075/webhdfs/v1/test.txt?op=OPEN"},
+                ),
+                mock.MagicMock(status_code=200, content=b"test data"),
             ]
 
-            with patch('pathlib.Path.mkdir'):
-                with patch('pathlib.Path.write_bytes'):
+            with patch("pathlib.Path.mkdir"):
+                with patch("pathlib.Path.write_bytes"):
                     # local_dest_expanded does NOT end with / or .
                     result = cmd._download_single("/test.txt", "/tmp/output", "/tmp/output")
                     # Covers lines 375-378 (else branch when NOT ending with / or .)
@@ -995,13 +1116,14 @@ class TestFileOpsEdgeCases:
 def test_get_file_size_error(monkeypatch, magics_instance):
     """Test _get_file_size avec erreur HTTP."""
     from webhdfsmagic.commands.file_ops import CatCommand
+
     cat_cmd = CatCommand(magics_instance.client)
     monkeypatch.setattr(
         "requests.get",
         lambda *a, **kw: MagicMock(
             status_code=404,
             raise_for_status=MagicMock(side_effect=Exception("404 error")),
-            json=lambda: {}
+            json=lambda: {},
         ),
     )
     try:
@@ -1015,8 +1137,9 @@ def test_format_csv_polars(monkeypatch, magics_instance):
     import pandas as pd
 
     from webhdfsmagic.commands.file_ops import CatCommand
+
     cat_cmd = CatCommand(magics_instance.client)
-    df = pd.DataFrame({"a": [1,2], "b": [3,4]})
+    df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
     text = df.to_csv(index=False)
     result = cat_cmd._format_csv(text.encode(), 2, "polars")
     assert "shape" in result or "a" in result
@@ -1029,8 +1152,9 @@ def test_format_parquet_polars(monkeypatch, magics_instance):
     import polars as pl
 
     from webhdfsmagic.commands.file_ops import CatCommand
+
     cat_cmd = CatCommand(magics_instance.client)
-    df = pl.DataFrame({"a": [1,2], "b": [3,4]})
+    df = pl.DataFrame({"a": [1, 2], "b": [3, 4]})
     buf = io.BytesIO()
     df.write_parquet(buf)
     result = cat_cmd._format_parquet(buf.getvalue(), 2, "polars")
@@ -1040,6 +1164,7 @@ def test_format_parquet_polars(monkeypatch, magics_instance):
 def test_format_parquet_error(monkeypatch, magics_instance):
     """Test _format_parquet avec erreur de parsing."""
     from webhdfsmagic.commands.file_ops import CatCommand
+
     cat_cmd = CatCommand(magics_instance.client)
     result = cat_cmd._format_parquet(b"notparquet", 2, None)
     assert "Raw content not available" in result
@@ -1048,9 +1173,12 @@ def test_format_parquet_error(monkeypatch, magics_instance):
 def test_download_multiple_sequential_error(monkeypatch, magics_instance):
     """Test _download_multiple_sequential avec erreur."""
     from webhdfsmagic.commands.file_ops import GetCommand
+
     get_cmd = GetCommand(magics_instance.client)
+
     def fail_download(hdfs_file, final_local_dest):
         raise Exception("fail")
+
     get_cmd._download_file = fail_download
     result = get_cmd._download_multiple_sequential([("/hdfs/file", "/tmp/file", "file")])
     assert "Error:" in result
@@ -1059,9 +1187,12 @@ def test_download_multiple_sequential_error(monkeypatch, magics_instance):
 def test_download_multiple_parallel_error(monkeypatch, magics_instance):
     """Test _download_multiple_parallel avec erreur."""
     from webhdfsmagic.commands.file_ops import GetCommand
+
     get_cmd = GetCommand(magics_instance.client)
+
     def fail_download(hdfs_file, final_local_dest):
         raise Exception("fail")
+
     result = get_cmd._download_multiple_parallel([("/hdfs/file", "/tmp/file", "file")], 2)
     assert "Error downloading" in result
 
@@ -1069,8 +1200,11 @@ def test_download_multiple_parallel_error(monkeypatch, magics_instance):
 def test_upload_multiple_parallel_error(monkeypatch, magics_instance):
     """Test _upload_multiple_parallel avec erreur."""
     from webhdfsmagic.commands.file_ops import PutCommand
+
     put_cmd = PutCommand(magics_instance.client)
+
     def fail_upload(local_file, hdfs_dest):
         raise Exception("fail")
+
     result = put_cmd._upload_multiple_parallel(["/tmp/file"], "/hdfs/dest", 2)
     assert "Error uploading" in result
