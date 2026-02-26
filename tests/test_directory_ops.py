@@ -351,7 +351,9 @@ def test_du_command_lists_children(du_client):
         df = du_cmd.execute("/data/users")
 
     assert isinstance(df, pd.DataFrame)
-    assert list(df.columns) == ["name", "type", "size", "space_consumed", "file_count", "dir_count"]
+    assert list(df.columns) == [
+        "name", "type", "size", "space_consumed", "file_count", "dir_count", "error"
+    ]
     assert len(df) == 2
     alice = df[df["name"] == "alice"].iloc[0]
     assert alice["size"] == 1_048_576
@@ -510,3 +512,102 @@ def test_hdfs_du_magic_empty_dir(magics_instance):
 
     assert isinstance(result, dict)
     assert result["empty_dir"] is True
+
+
+def _make_http_error(status_code: int):
+    """Helper to build a requests.HTTPError with a given status code."""
+    response = MagicMock()
+    response.status_code = status_code
+    error = requests.exceptions.HTTPError(response=response)
+    return error
+
+
+def test_du_command_partial_permission_denied(du_client):
+    """When one child returns 403, it appears with error=... and others are normal."""
+    du_cmd = DuCommand(du_client)
+
+    def mock_execute(method, op, path, **kwargs):
+        if op == "LISTSTATUS":
+            return FAKE_LISTSTATUS_TWO_DIRS
+        if "alice" in path:
+            raise _make_http_error(403)
+        return FAKE_CS_BOB
+
+    with patch.object(du_client, "execute", side_effect=mock_execute):
+        df = du_cmd.execute("/data/users")
+
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == 2
+
+    alice = df[df["name"] == "alice"].iloc[0]
+    assert pd.isna(alice["size"])
+    assert "permission denied" in alice["error"]
+    assert "403" in alice["error"]
+
+    bob = df[df["name"] == "bob"].iloc[0]
+    assert bob["size"] == 524_288
+    assert pd.isna(bob["error"])
+
+
+def test_du_command_all_permission_denied(du_client):
+    """When all children return 403, DataFrame has all error rows."""
+    du_cmd = DuCommand(du_client)
+
+    def mock_execute(method, op, path, **kwargs):
+        if op == "LISTSTATUS":
+            return FAKE_LISTSTATUS_TWO_DIRS
+        raise _make_http_error(403)
+
+    with patch.object(du_client, "execute", side_effect=mock_execute):
+        df = du_cmd.execute("/data/users")
+
+    assert len(df) == 2
+    assert df["error"].notna().all()
+    assert df["size"].isna().all()
+
+
+def test_du_command_unauthorized_401(du_client):
+    """HTTP 401 is also caught and reported gracefully."""
+    du_cmd = DuCommand(du_client)
+
+    def mock_execute(method, op, path, **kwargs):
+        if op == "LISTSTATUS":
+            return FAKE_LISTSTATUS_TWO_DIRS
+        raise _make_http_error(401)
+
+    with patch.object(du_client, "execute", side_effect=mock_execute):
+        df = du_cmd.execute("/data/users")
+
+    assert df["error"].str.contains("401").all()
+
+
+def test_du_command_non_permission_http_error(du_client):
+    """Non-403/401 HTTP errors (e.g. 500) are also caught and reported."""
+    du_cmd = DuCommand(du_client)
+
+    def mock_execute(method, op, path, **kwargs):
+        if op == "LISTSTATUS":
+            return FAKE_LISTSTATUS_TWO_DIRS
+        raise _make_http_error(500)
+
+    with patch.object(du_client, "execute", side_effect=mock_execute):
+        df = du_cmd.execute("/data/users")
+
+    assert df["error"].str.contains("500").all()
+    assert df["size"].isna().all()
+
+
+def test_du_command_accessible_column_present_on_success(du_client):
+    """Successful rows always have error=None (column is always present)."""
+    du_cmd = DuCommand(du_client)
+
+    def mock_execute(method, op, path, **kwargs):
+        if op == "LISTSTATUS":
+            return FAKE_LISTSTATUS_TWO_DIRS
+        return FAKE_CS_BOB
+
+    with patch.object(du_client, "execute", side_effect=mock_execute):
+        df = du_cmd.execute("/data/users")
+
+    assert "error" in df.columns
+    assert df["error"].isna().all()

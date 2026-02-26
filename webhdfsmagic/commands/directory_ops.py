@@ -11,6 +11,7 @@ import fnmatch
 from typing import Union
 
 import pandas as pd
+import requests
 
 from ..utils import format_file_entry, format_size
 from .base import BaseCommand
@@ -96,17 +97,26 @@ class DuCommand(BaseCommand):
         entries = []
         for status in file_statuses:
             name = status["pathSuffix"]
+            entry_type = "DIR" if status["type"] == "DIRECTORY" else "FILE"
             child_path = f"{path.rstrip('/')}/{name}"
-            cs_result = self.client.execute("GET", "GETCONTENTSUMMARY", child_path)
-            cs = cs_result["ContentSummary"]
-            entries.append(
-                self._build_row(
-                    name=name,
-                    entry_type="DIR" if status["type"] == "DIRECTORY" else "FILE",
-                    cs=cs,
-                    human_readable=human_readable,
+            try:
+                cs_result = self.client.execute("GET", "GETCONTENTSUMMARY", child_path)
+                cs = cs_result["ContentSummary"]
+                entries.append(
+                    self._build_row(
+                        name=name,
+                        entry_type=entry_type,
+                        cs=cs,
+                        human_readable=human_readable,
+                    )
                 )
-            )
+            except requests.exceptions.HTTPError as e:
+                status_code = e.response.status_code if e.response is not None else "?"
+                if status_code in (401, 403):
+                    error_msg = f"permission denied (HTTP {status_code})"
+                else:
+                    error_msg = f"HTTP {status_code}"
+                entries.append(self._error_row(name, entry_type, error_msg))
 
         return pd.DataFrame(entries)
 
@@ -131,6 +141,19 @@ class DuCommand(BaseCommand):
             ),
             "file_count": cs["fileCount"],
             "dir_count": cs["directoryCount"],
+            "error": None,
+        }
+
+    def _error_row(self, name: str, entry_type: str, error_msg: str) -> dict:
+        """Build a row for an inaccessible entry (permission denied or other HTTP error)."""
+        return {
+            "name": name,
+            "type": entry_type,
+            "size": None,
+            "space_consumed": None,
+            "file_count": None,
+            "dir_count": None,
+            "error": error_msg,
         }
 
 
