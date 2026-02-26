@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-0.0.4-blue.svg)
+![Version](https://img.shields.io/badge/version-0.0.5-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Tests](https://img.shields.io/badge/tests-254%20passed-success.svg)
@@ -42,6 +42,7 @@ df = pd.read_csv('file.csv')
 | Command | Description |
 |----------|-------------|
 | `%hdfs ls [path]` | List files and directories (returns pandas DataFrame) |
+| `%hdfs du <path> [-s] [-h]` | Disk usage — real recursive sizes via `GETCONTENTSUMMARY` <br><span style="color:#0969da;font-weight:500">-s</span> : summary of path itself &nbsp;·&nbsp; <span style="color:#0969da;font-weight:500">-h</span> : human-readable (KB/MB/GB) |
 | `%hdfs mkdir <path>` | Create directory (parents created automatically) |
 | `%hdfs put <local> <hdfs>` | Upload one or more files (supports wildcards `*.csv`, <br><span style="color:#0969da;font-weight:500">-t, --threads &lt;N&gt;</span> for parallel uploads) |
 | `%hdfs get <hdfs> <local>` | Download files (supports wildcards and `~` for home directory, <br><span style="color:#0969da;font-weight:500">-t, --threads &lt;N&gt;</span> for parallel downloads) |
@@ -152,6 +153,18 @@ grep "hdfs put" ~/.webhdfsmagic/logs/webhdfsmagic.log
 
 # List files
 %hdfs ls /data
+
+# Disk usage — list immediate children with their real recursive sizes
+%hdfs du /data/users
+
+# Disk usage — summary of the path itself (single call, no children iteration)
+%hdfs du -s /data/users
+
+# Human-readable sizes (KB / MB / GB)
+%hdfs du -h /data/users
+
+# Combine both: summary + human-readable
+%hdfs du -sh /data/users
 
 # Create a directory
 %hdfs mkdir /user/hdfs/output
@@ -283,6 +296,44 @@ Automatically format structured files as readable tables:
 
 **⚠️ Large Parquet Files**: Files > 100 MB will show a warning recommending to download first with `%hdfs get` for better performance.
 
+### Disk Usage — Real Directory Sizes (`%hdfs du`)
+
+`LISTSTATUS` (used by `%hdfs ls`) always reports `size=0` for directories. `%hdfs du` fixes this by calling `GETCONTENTSUMMARY` per entry, which returns the actual recursive size.
+
+```python
+# Default: iterate over immediate children, show real recursive size for each
+%hdfs du /data/users
+# Returns a DataFrame:
+# name      type  size         space_consumed  file_count  dir_count  error
+# alice     DIR   1073741824   3221225472      4820        12         None
+# bob       DIR   536870912    1610612736      2100        5          None
+# reports   FILE  10485760     31457280        1           0          None
+
+# Summary: single row for the path itself
+%hdfs du -s /data/users
+# name          type  size         space_consumed  file_count  dir_count  error
+# /data/users   DIR   1610612736   4831838208      6921        17         None
+
+# Human-readable sizes
+%hdfs du -h /data/users
+# name      type  size    space_consumed  file_count  dir_count  error
+# alice     DIR   1.0 GB  3.0 GB          4820        12         None
+# bob       DIR   512.0 MB  1.5 GB        2100        5          None
+
+# Combine both
+%hdfs du -sh /data/users
+```
+
+**Graceful permission handling:** directories returning HTTP 401/403 are included in the DataFrame with `size=None` and an `error` message — the command never crashes mid-iteration:
+
+```python
+%hdfs du /sensitive/data
+# name       type  size  space_consumed  file_count  dir_count  error
+# public     DIR   ...   ...             ...         ...        None
+# private    DIR   None  None            None        None       permission denied (HTTP 403)
+# readonly   DIR   ...   ...             ...         ...        None
+```
+
 ### Parallel Uploads & Downloads (Multi-threaded PUT/GET)
 
 Starting from version 0.0.4, webhdfsmagic supports **parallel file transfers** using the `--threads` (or `-t`) option for both `put` and `get` commands.
@@ -326,7 +377,7 @@ Get detailed help directly in your notebook:
 ```
 
 This displays a **comprehensive interactive help** with:
-- All available commands (ls, mkdir, put, get, cat, rm, chmod, chown)
+- All available commands (ls, du, mkdir, put, get, cat, rm, chmod, chown)
 - Options and flags for each command
 - Format descriptions for the `cat` command
 - Auto-detection features explanation
@@ -338,6 +389,7 @@ This displays a **comprehensive interactive help** with:
 | `%hdfs help` | Display this help |
 | `%hdfs setconfig {...}` | Set configuration (JSON format) |
 | `%hdfs ls [path]` | List files and directories |
+| `%hdfs du <path> [-s] [-h]` | Disk usage (real recursive sizes) <br> <span style="color:#0969da;font-weight:500">-s</span> : summary of path itself &nbsp;·&nbsp; <span style="color:#0969da;font-weight:500">-h</span> : human-readable sizes |
 | `%hdfs mkdir <path>` | Create directory |
 | `%hdfs rm <path> [-r]` | Delete file/directory <br> <span style="color:#0969da;font-weight:500">-r</span> : recursive deletion |
 | `%hdfs put <local> <hdfs>` | Upload files (supports wildcards) <br> <span style="color:#0969da;font-weight:500">-t, --threads &lt;N&gt;</span> : use N parallel threads for multi-file uploads |
@@ -348,6 +400,8 @@ This displays a **comprehensive interactive help** with:
 
 **Examples:**
 
+- `%hdfs du /data/users` – List children with their real recursive sizes
+- `%hdfs du -sh /data/users` – Total size of the path, human-readable
 - `%hdfs cat data.csv -n 10` – Preview first 10 rows
 - `%hdfs cat data.parquet --format pandas` – Display in pandas format (classic)
 - `%hdfs cat data.parquet --format polars` – Display with schema and types
