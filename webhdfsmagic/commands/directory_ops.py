@@ -3,11 +3,15 @@ Directory operation commands for WebHDFS.
 
 This module implements commands for directory operations:
 - ls: List directory contents
+- du: Disk usage
+- stat: File/directory metadata
+- mv: Rename/move files and directories
 - mkdir: Create directories
 - rm: Remove files/directories
 """
 
 import fnmatch
+import os
 from typing import Union
 
 import pandas as pd
@@ -126,9 +130,7 @@ class DuCommand(BaseCommand):
         cs = cs_result["ContentSummary"]
         return pd.DataFrame([self._build_row(display_name, "DIR", cs, human_readable)])
 
-    def _build_row(
-        self, name: str, entry_type: str, cs: dict, human_readable: bool
-    ) -> dict:
+    def _build_row(self, name: str, entry_type: str, cs: dict, human_readable: bool) -> dict:
         """Build a single row dict from a ContentSummary payload."""
         length = cs["length"]
         consumed = cs["spaceConsumed"]
@@ -157,6 +159,68 @@ class DuCommand(BaseCommand):
         }
 
 
+class StatCommand(BaseCommand):
+    """Get metadata for a single HDFS file or directory (GETFILESTATUS)."""
+
+    def execute(self, path: str) -> pd.DataFrame:
+        """
+        Return metadata for an HDFS file or directory.
+
+        Uses the GETFILESTATUS WebHDFS operation — one API call, no recursion.
+        The returned DataFrame has one row with the same columns as %hdfs ls:
+        name, type, size, owner, group, permissions, block_size, modified, replication.
+
+        Args:
+            path: HDFS file or directory path
+
+        Returns:
+            Single-row DataFrame with file metadata
+
+        Example:
+            >>> cmd = StatCommand(client)
+            >>> df = cmd.execute("/data/events.parquet")
+            >>> print(df[["name", "type", "size", "owner"]].to_string(index=False))
+            name           type   size  owner
+            events.parquet FILE  10240  hadoop
+        """
+        result = self.client.execute("GET", "GETFILESTATUS", path)
+        fs = result["FileStatus"]
+        entry = format_file_entry(fs)
+        # GETFILESTATUS sets pathSuffix="" (path itself, not a child).
+        # Use the basename of the requested path instead.
+        if not entry["name"]:
+            entry["name"] = os.path.basename(path.rstrip("/")) or path
+        return pd.DataFrame([entry])
+
+
+class MvCommand(BaseCommand):
+    """Rename or move a file/directory on HDFS (RENAME operation)."""
+
+    def execute(self, src: str, dst: str) -> str:
+        """
+        Rename or move an HDFS file or directory.
+
+        Uses the RENAME WebHDFS operation (one API call, server-side move — no data copy).
+        The destination must not already exist.
+
+        Args:
+            src: Source HDFS path
+            dst: Destination HDFS path (must be absolute)
+
+        Returns:
+            Success or error message
+
+        Example:
+            >>> cmd = MvCommand(client)
+            >>> cmd.execute("/data/old_name.csv", "/data/new_name.csv")
+            '/data/old_name.csv moved to /data/new_name.csv'
+        """
+        result = self.client.execute("PUT", "RENAME", src, destination=dst)
+        if result.get("boolean"):
+            return f"{src} moved to {dst}"
+        return f"Error: could not move {src} to {dst} (destination may already exist)"
+
+
 class MkdirCommand(BaseCommand):
     """Create directory on HDFS."""
 
@@ -183,10 +247,7 @@ class RmCommand(BaseCommand):
     """Remove files/directories from HDFS."""
 
     def execute(
-        self,
-        pattern: str,
-        recursive: bool = False,
-        format_ls_func: callable = None
+        self, pattern: str, recursive: bool = False, format_ls_func: callable = None
     ) -> str:
         """
         Remove file(s) or directory from HDFS.

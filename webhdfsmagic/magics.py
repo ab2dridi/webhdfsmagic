@@ -23,8 +23,10 @@ from .commands import (
     GetCommand,
     ListCommand,
     MkdirCommand,
+    MvCommand,
     PutCommand,
     RmCommand,
+    StatCommand,
 )
 from .config import ConfigurationManager
 from .logger import get_logger
@@ -62,6 +64,8 @@ class WebHDFSMagics(Magics):
       - %hdfs chown     : Change owner and group (-R for recursive)
       - %hdfs du        : Show disk usage (real directory sizes via GETCONTENTSUMMARY)
                           Options: -s (summary only), -h (human-readable sizes)
+      - %hdfs stat      : Show metadata for a single file or directory (GETFILESTATUS)
+      - %hdfs mv        : Rename or move a file/directory (RENAME)
     """
 
     # Configuration traits
@@ -109,6 +113,8 @@ class WebHDFSMagics(Magics):
         self.cat_cmd = CatCommand(self.client)
         self.get_cmd = GetCommand(self.client)
         self.put_cmd = PutCommand(self.client)
+        self.stat_cmd = StatCommand(self.client)
+        self.mv_cmd = MvCommand(self.client)
         self.chmod_cmd = ChmodCommand(self.client)
         self.chown_cmd = ChownCommand(self.client)
 
@@ -158,10 +164,10 @@ class WebHDFSMagics(Magics):
     def _extract_threads_option(self, args: list) -> tuple:
         """
         Extract --threads or -t option from arguments.
-        
+
         Args:
             args: Command arguments list
-            
+
         Returns:
             Tuple of (threads_count, remaining_args)
             Default threads_count is 1 if not specified
@@ -255,12 +261,46 @@ class WebHDFSMagics(Magics):
                 )
                 return result
 
+            elif cmd == "stat":
+                if not args:
+                    return "Usage: %hdfs stat <path>"
+                path = args[0]
+                try:
+                    result = self.stat_cmd.execute(path)
+                    self.logger.log_operation_end(operation="hdfs stat", success=True, path=path)
+                    return result
+                except requests.exceptions.HTTPError as e:
+                    error_msg = self._handle_http_error(e, path, "path")
+                    if error_msg:
+                        self.logger.log_operation_end(
+                            operation="hdfs stat", success=False, path=path, error=error_msg
+                        )
+                        return error_msg
+                    raise
+
+            elif cmd == "mv":
+                if len(args) < 2:
+                    return "Usage: %hdfs mv <src> <dst>"
+                src, dst = args[0], args[1]
+                try:
+                    result = self.mv_cmd.execute(src, dst)
+                    self.logger.log_operation_end(
+                        operation="hdfs mv", success=True, src=src, dst=dst
+                    )
+                    return result
+                except requests.exceptions.HTTPError as e:
+                    error_msg = self._handle_http_error(e, src, "path")
+                    if error_msg:
+                        self.logger.log_operation_end(
+                            operation="hdfs mv", success=False, src=src, error=error_msg
+                        )
+                        return error_msg
+                    raise
+
             elif cmd == "mkdir":
                 path = args[0]
                 result = self.mkdir_cmd.execute(path)
-                self.logger.log_operation_end(
-                    operation="hdfs mkdir", success=True, path=path
-                )
+                self.logger.log_operation_end(operation="hdfs mkdir", success=True, path=path)
                 return result
 
             elif cmd == "rm":
@@ -269,7 +309,6 @@ class WebHDFSMagics(Magics):
                     operation="hdfs rm", success=True, pattern=args[0] if args else None
                 )
                 return result
-
 
             elif cmd == "put":
                 if len(args) < 2:
@@ -290,14 +329,15 @@ class WebHDFSMagics(Magics):
                     return
                 return result
 
-
             elif cmd == "get":
                 if len(args) < 2:
                     return "Usage: %hdfs get [-t <threads>] <hdfs_source> <local_dest>"
                 threads, parsed_args = self._extract_threads_option(args)
                 if len(parsed_args) < 2:
                     return "Usage: %hdfs get [-t <threads>] <hdfs_source> <local_dest>"
-                result = self.get_cmd.execute(parsed_args[0], parsed_args[1], self._format_ls, threads)
+                result = self.get_cmd.execute(
+                    parsed_args[0], parsed_args[1], self._format_ls, threads
+                )
                 self.logger.log_operation_end(
                     operation="hdfs get",
                     success=True,
@@ -413,9 +453,9 @@ class WebHDFSMagics(Magics):
                         "(csv, parquet, pandas, polars, raw)."
                     )
                 format_type = args[i + 1]
-                valid_formats = ['csv', 'parquet', 'pandas', 'polars', 'raw']
+                valid_formats = ["csv", "parquet", "pandas", "polars", "raw"]
                 if format_type not in valid_formats:
-                    formats_str = ', '.join(valid_formats)
+                    formats_str = ", ".join(valid_formats)
                     return f"Error: invalid format type '{format_type}'. Use: {formats_str}."
                 i += 2
             elif args[i] == "--raw":
@@ -558,6 +598,18 @@ class WebHDFSMagics(Magics):
                         combine both options</td>
                 </tr>
                 <tr>
+                    <td><code>%hdfs stat &lt;path&gt;</code></td>
+                    <td><strong>File metadata</strong> — single-row DataFrame
+                        (GETFILESTATUS)<br>
+                        Columns: name, type, size, owner, group, permissions,
+                        block_size, modified, replication</td>
+                </tr>
+                <tr>
+                    <td><code>%hdfs mv &lt;src&gt; &lt;dst&gt;</code></td>
+                    <td><strong>Rename or move</strong> a file/directory (RENAME)<br>
+                        Server-side operation — no data copy</td>
+                </tr>
+                <tr>
                     <td><code>%hdfs rm &lt;path&gt; [-r]</code></td>
                     <td>Delete file/directory<br>
                         <span class="option">-r</span> : recursive deletion</td>
@@ -618,6 +670,10 @@ class WebHDFSMagics(Magics):
             <li><code>%hdfs du /data/users</code> - Size of each user directory</li>
             <li><code>%hdfs du -h /data/users</code> - Same, human-readable sizes</li>
             <li><code>%hdfs du -sh /data/warehouse</code> - Total size of warehouse</li>
+            <li><code>%hdfs stat /data/events.parquet</code> - Metadata for a file</li>
+            <li><code>%hdfs stat /data/users</code> - Metadata for a directory</li>
+            <li><code>%hdfs mv /data/old.csv /data/new.csv</code> - Rename a file</li>
+            <li><code>%hdfs mv /data/tmp /data/archive/tmp</code> - Move a directory</li>
             <li><code>%hdfs chmod -R 755 /mydir</code> - Set permissions recursively</li>
         </ul>
         </div>
