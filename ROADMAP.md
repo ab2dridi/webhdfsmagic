@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Version 0.0.4** - Multi-threaded get/put
+**Version 0.0.5** - Disk usage (`du`) + graceful permission handling
 
 
 **Features Implemented:**
@@ -47,7 +47,7 @@ Get detailed information about a file (size, owner, permissions, modification da
 
 **Use Case:** Data validation, existence checking, quick inspection before processing
 
-### 2. du - Disk Usage
+### ~~2. du - Disk Usage~~ ✅ Done in 0.0.5
 
 Calculate disk space used by files or directories
 

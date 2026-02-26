@@ -5,6 +5,17 @@ All notable changes to webhdfsmagic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.5] - 2026-02-26
+
+### Added
+- **`%hdfs du` — Disk usage command** (real directory sizes via `GETCONTENTSUMMARY`):
+  - Default: iterates over immediate children and returns their real recursive size
+  - `-s`: summary of the path itself (single `GETCONTENTSUMMARY` call, no children iteration)
+  - `-h`: human-readable sizes (KB/MB/GB)
+  - `-sh`: combine both options
+  - Returns a DataFrame with columns: `name`, `type`, `size`, `space_consumed`, `file_count`, `dir_count`, `error`
+  - **Graceful permission handling**: directories returning HTTP 403/401 are included in the DataFrame with `size=NaN` and an `error` message — the command never crashes mid-iteration
+
 ## [0.0.4] - 2025-12-21
 
 ### Added
