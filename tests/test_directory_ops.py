@@ -1,4 +1,4 @@
-"""Tests for directory operations commands (ls, mkdir, rm, du)."""
+"""Tests for directory operations commands (ls, mkdir, rm, du, stat, mv)."""
 
 import json
 from unittest.mock import MagicMock, patch
@@ -8,7 +8,14 @@ import pytest
 import requests
 
 from webhdfsmagic.client import WebHDFSClient
-from webhdfsmagic.commands.directory_ops import DuCommand, ListCommand, MkdirCommand, RmCommand
+from webhdfsmagic.commands.directory_ops import (
+    DuCommand,
+    ListCommand,
+    MkdirCommand,
+    MvCommand,
+    RmCommand,
+    StatCommand,
+)
 
 
 def test_ls(monkeypatch, magics_instance):
@@ -78,7 +85,7 @@ def client():
         webhdfs_api="/api",
         auth_user="user",
         auth_password="pass",
-        verify_ssl=False
+        verify_ssl=False,
     )
 
 
@@ -86,7 +93,7 @@ def test_list_command_execute(client):
     """Test ListCommand.execute with files."""
     list_cmd = ListCommand(client)
 
-    with patch.object(client, 'execute') as mock_execute:
+    with patch.object(client, "execute") as mock_execute:
         mock_execute.return_value = {
             "FileStatuses": {
                 "FileStatus": [
@@ -99,7 +106,7 @@ def test_list_command_execute(client):
                         "modificationTime": 1609459200000,
                         "length": 1024,
                         "blockSize": 134217728,
-                        "replication": 3
+                        "replication": 3,
                     }
                 ]
             }
@@ -116,12 +123,8 @@ def test_list_command_empty_directory(client):
     """Test ListCommand.execute with empty directory."""
     list_cmd = ListCommand(client)
 
-    with patch.object(client, 'execute') as mock_execute:
-        mock_execute.return_value = {
-            "FileStatuses": {
-                "FileStatus": []
-            }
-        }
+    with patch.object(client, "execute") as mock_execute:
+        mock_execute.return_value = {"FileStatuses": {"FileStatus": []}}
 
         result = list_cmd.execute("/empty")
 
@@ -137,7 +140,7 @@ def test_mkdir_command_execute(client):
     """Test MkdirCommand.execute."""
     mkdir_cmd = MkdirCommand(client)
 
-    with patch.object(client, 'execute') as mock_execute:
+    with patch.object(client, "execute") as mock_execute:
         mock_execute.return_value = {"boolean": True}
 
         result = mkdir_cmd.execute("/test/newdir")
@@ -150,7 +153,7 @@ def test_mkdir_command_with_nested_path(client):
     """Test MkdirCommand.execute with nested path."""
     mkdir_cmd = MkdirCommand(client)
 
-    with patch.object(client, 'execute') as mock_execute:
+    with patch.object(client, "execute") as mock_execute:
         mock_execute.return_value = {"boolean": True}
 
         result = mkdir_cmd.execute("/a/b/c/d")
@@ -165,7 +168,7 @@ def test_rm_command_single_file(client):
     """Test RmCommand.execute with single file."""
     rm_cmd = RmCommand(client)
 
-    with patch.object(client, 'execute') as mock_execute:
+    with patch.object(client, "execute") as mock_execute:
         mock_execute.return_value = {"boolean": True}
 
         result = rm_cmd.execute("/test/file.txt", recursive=False)
@@ -180,15 +183,13 @@ def test_rm_command_recursive(client):
     """Test RmCommand.execute with recursive flag."""
     rm_cmd = RmCommand(client)
 
-    with patch.object(client, 'execute') as mock_execute:
+    with patch.object(client, "execute") as mock_execute:
         mock_execute.return_value = {"boolean": True}
 
         result = rm_cmd.execute("/test/dir", recursive=True)
 
         assert "/test/dir deleted" in result
-        mock_execute.assert_called_once_with(
-            "DELETE", "DELETE", "/test/dir", recursive="true"
-        )
+        mock_execute.assert_called_once_with("DELETE", "DELETE", "/test/dir", recursive="true")
 
 
 def test_rm_command_wildcard_with_matches(client):
@@ -196,13 +197,15 @@ def test_rm_command_wildcard_with_matches(client):
     rm_cmd = RmCommand(client)
 
     def mock_format_ls(path):
-        return pd.DataFrame([
-            {"name": "file1.csv", "type": "FILE"},
-            {"name": "file2.csv", "type": "FILE"},
-            {"name": "other.txt", "type": "FILE"}
-        ])
+        return pd.DataFrame(
+            [
+                {"name": "file1.csv", "type": "FILE"},
+                {"name": "file2.csv", "type": "FILE"},
+                {"name": "other.txt", "type": "FILE"},
+            ]
+        )
 
-    with patch.object(client, 'execute') as mock_execute:
+    with patch.object(client, "execute") as mock_execute:
         mock_execute.return_value = {"boolean": True}
 
         result = rm_cmd.execute("/data/*.csv", recursive=False, format_ls_func=mock_format_ls)
@@ -217,9 +220,7 @@ def test_rm_command_wildcard_no_matches(client):
     rm_cmd = RmCommand(client)
 
     def mock_format_ls(path):
-        return pd.DataFrame([
-            {"name": "file1.txt", "type": "FILE"}
-        ])
+        return pd.DataFrame([{"name": "file1.txt", "type": "FILE"}])
 
     result = rm_cmd.execute("/data/*.csv", recursive=False, format_ls_func=mock_format_ls)
 
@@ -251,17 +252,16 @@ def test_rm_command_wildcard_with_error(client):
     rm_cmd = RmCommand(client)
 
     def mock_format_ls(path):
-        return pd.DataFrame([
-            {"name": "file1.csv", "type": "FILE"},
-            {"name": "file2.csv", "type": "FILE"}
-        ])
+        return pd.DataFrame(
+            [{"name": "file1.csv", "type": "FILE"}, {"name": "file2.csv", "type": "FILE"}]
+        )
 
     def mock_execute_with_error(method, op, path, **kwargs):
         if "file2" in path:
             raise Exception("Permission denied")
         return {"boolean": True}
 
-    with patch.object(client, 'execute', side_effect=mock_execute_with_error):
+    with patch.object(client, "execute", side_effect=mock_execute_with_error):
         result = rm_cmd.execute("/data/*.csv", recursive=False, format_ls_func=mock_format_ls)
 
         assert "file1.csv deleted" in result
@@ -352,7 +352,13 @@ def test_du_command_lists_children(du_client):
 
     assert isinstance(df, pd.DataFrame)
     assert list(df.columns) == [
-        "name", "type", "size", "space_consumed", "file_count", "dir_count", "error"
+        "name",
+        "type",
+        "size",
+        "space_consumed",
+        "file_count",
+        "dir_count",
+        "error",
     ]
     assert len(df) == 2
     alice = df[df["name"] == "alice"].iloc[0]
@@ -611,3 +617,263 @@ def test_du_command_accessible_column_present_on_success(du_client):
 
     assert "error" in df.columns
     assert df["error"].isna().all()
+
+
+# ---------------------------------------------------------------------------
+# StatCommand tests
+# ---------------------------------------------------------------------------
+
+FAKE_FILE_STATUS_FILE = {
+    "FileStatus": {
+        "pathSuffix": "",
+        "type": "FILE",
+        "length": 10240,
+        "owner": "hadoop",
+        "group": "supergroup",
+        "permission": "644",
+        "modificationTime": 1700000000000,
+        "blockSize": 134217728,
+        "replication": 3,
+    }
+}
+
+FAKE_FILE_STATUS_DIR = {
+    "FileStatus": {
+        "pathSuffix": "",
+        "type": "DIRECTORY",
+        "length": 0,
+        "owner": "hadoop",
+        "group": "supergroup",
+        "permission": "755",
+        "modificationTime": 1700000000000,
+        "blockSize": 0,
+        "replication": 0,
+    }
+}
+
+
+@pytest.fixture
+def stat_client():
+    return MagicMock(spec=WebHDFSClient)
+
+
+def test_stat_command_file(stat_client):
+    """stat on a file returns a single-row DataFrame with correct metadata."""
+    stat_client.execute.return_value = FAKE_FILE_STATUS_FILE
+    cmd = StatCommand(stat_client)
+    df = cmd.execute("/data/events.parquet")
+
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == 1
+    assert list(df.columns) == [
+        "name",
+        "type",
+        "size",
+        "owner",
+        "group",
+        "permissions",
+        "block_size",
+        "modified",
+        "replication",
+    ]
+    row = df.iloc[0]
+    assert row["name"] == "events.parquet"
+    assert row["type"] == "FILE"
+    assert row["size"] == 10240
+    assert row["owner"] == "hadoop"
+    assert row["permissions"] == "rw-r--r--"
+    assert row["replication"] == 3
+
+
+def test_stat_command_directory(stat_client):
+    """stat on a directory returns type=DIR and uses path basename as name."""
+    stat_client.execute.return_value = FAKE_FILE_STATUS_DIR
+    cmd = StatCommand(stat_client)
+    df = cmd.execute("/data/users")
+
+    row = df.iloc[0]
+    assert row["name"] == "users"
+    assert row["type"] == "DIR"
+    assert row["permissions"] == "rwxr-xr-x"
+
+
+def test_stat_command_trailing_slash(stat_client):
+    """Trailing slash on path is stripped for the name."""
+    stat_client.execute.return_value = FAKE_FILE_STATUS_DIR
+    cmd = StatCommand(stat_client)
+    df = cmd.execute("/data/users/")
+
+    assert df.iloc[0]["name"] == "users"
+
+
+def test_stat_command_root(stat_client):
+    """stat on root path uses full path as name when basename is empty."""
+    status = dict(FAKE_FILE_STATUS_DIR)
+    status["FileStatus"] = dict(FAKE_FILE_STATUS_DIR["FileStatus"])
+    stat_client.execute.return_value = status
+    cmd = StatCommand(stat_client)
+    df = cmd.execute("/")
+
+    assert df.iloc[0]["name"] == "/"
+
+
+def test_stat_command_calls_getfilestatus(stat_client):
+    """StatCommand always calls GETFILESTATUS (not LISTSTATUS)."""
+    stat_client.execute.return_value = FAKE_FILE_STATUS_FILE
+    cmd = StatCommand(stat_client)
+    cmd.execute("/data/events.parquet")
+
+    stat_client.execute.assert_called_once_with("GET", "GETFILESTATUS", "/data/events.parquet")
+
+
+def test_hdfs_stat_magic_command(monkeypatch, magics_instance):
+    """%%hdfs stat dispatches correctly and returns a DataFrame."""
+    fake_response = MagicMock()
+    fake_data = FAKE_FILE_STATUS_FILE
+    fake_response.content = json.dumps(fake_data).encode("utf-8")
+    fake_response.status_code = 200
+    fake_response.json.return_value = fake_data
+    fake_response.raise_for_status = MagicMock()
+
+    monkeypatch.setattr(requests, "request", lambda *a, **kw: fake_response)
+    result = magics_instance.hdfs("stat /data/events.parquet")
+
+    assert isinstance(result, pd.DataFrame)
+    assert result.iloc[0]["name"] == "events.parquet"
+
+
+def test_hdfs_stat_magic_no_path(magics_instance):
+    """%%hdfs stat with no path returns usage message."""
+    result = magics_instance.hdfs("stat")
+    assert "Usage" in result
+
+
+def test_hdfs_stat_magic_not_found(monkeypatch, magics_instance):
+    """%%hdfs stat on a non-existent path returns a 404 message."""
+    fake_response = MagicMock()
+    fake_response.status_code = 404
+    http_error = requests.exceptions.HTTPError(response=fake_response)
+    fake_response.raise_for_status.side_effect = http_error
+
+    monkeypatch.setattr(
+        requests,
+        "request",
+        lambda *a, **kw: (_ for _ in ()).throw(http_error),
+    )
+
+    with patch.object(magics_instance.stat_cmd, "execute", side_effect=http_error):
+        result = magics_instance.hdfs("stat /data/missing.csv")
+
+    assert "not found" in result.lower() or "404" in result
+
+
+# ---------------------------------------------------------------------------
+# MvCommand tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def mv_client():
+    return MagicMock(spec=WebHDFSClient)
+
+
+def test_mv_command_success(mv_client):
+    """mv returns success message when RENAME returns boolean=True."""
+    mv_client.execute.return_value = {"boolean": True}
+    cmd = MvCommand(mv_client)
+    result = cmd.execute("/data/old.csv", "/data/new.csv")
+
+    assert result == "/data/old.csv moved to /data/new.csv"
+
+
+def test_mv_command_failure(mv_client):
+    """mv returns error message when RENAME returns boolean=False."""
+    mv_client.execute.return_value = {"boolean": False}
+    cmd = MvCommand(mv_client)
+    result = cmd.execute("/data/old.csv", "/data/existing.csv")
+
+    assert "Error" in result
+    assert "/data/old.csv" in result
+
+
+def test_mv_command_calls_rename(mv_client):
+    """MvCommand calls RENAME with correct src and destination param."""
+    mv_client.execute.return_value = {"boolean": True}
+    cmd = MvCommand(mv_client)
+    cmd.execute("/data/old.csv", "/data/new.csv")
+
+    mv_client.execute.assert_called_once_with(
+        "PUT", "RENAME", "/data/old.csv", destination="/data/new.csv"
+    )
+
+
+def test_mv_command_directory(mv_client):
+    """mv works on directories too."""
+    mv_client.execute.return_value = {"boolean": True}
+    cmd = MvCommand(mv_client)
+    result = cmd.execute("/data/tmp", "/data/archive/tmp")
+
+    assert result == "/data/tmp moved to /data/archive/tmp"
+
+
+def test_hdfs_mv_magic_command(monkeypatch, magics_instance):
+    """%hdfs mv dispatches correctly and returns success message."""
+    fake_response = MagicMock()
+    fake_data = {"boolean": True}
+    fake_response.content = json.dumps(fake_data).encode("utf-8")
+    fake_response.status_code = 200
+    fake_response.json.return_value = fake_data
+    fake_response.raise_for_status = MagicMock()
+
+    monkeypatch.setattr(requests, "request", lambda *a, **kw: fake_response)
+    result = magics_instance.hdfs("mv /data/old.csv /data/new.csv")
+
+    assert "moved" in result
+    assert "/data/old.csv" in result
+
+
+def test_hdfs_mv_magic_no_args(magics_instance):
+    """%hdfs mv with no args returns usage message."""
+    result = magics_instance.hdfs("mv")
+    assert "Usage" in result
+
+
+def test_hdfs_mv_magic_one_arg(magics_instance):
+    """%hdfs mv with only one arg returns usage message."""
+    result = magics_instance.hdfs("mv /data/old.csv")
+    assert "Usage" in result
+
+
+def test_mv_command_missing_boolean_key(mv_client):
+    """If RENAME response has no 'boolean' key, mv returns an error message."""
+    mv_client.execute.return_value = {}
+    cmd = MvCommand(mv_client)
+    result = cmd.execute("/data/old.csv", "/data/new.csv")
+
+    assert "Error" in result
+
+
+def test_hdfs_mv_magic_not_found(magics_instance):
+    """%hdfs mv on a non-existent source returns a friendly 404 message."""
+    fake_response = MagicMock()
+    fake_response.status_code = 404
+    http_error = requests.exceptions.HTTPError(response=fake_response)
+
+    with patch.object(magics_instance.mv_cmd, "execute", side_effect=http_error):
+        result = magics_instance.hdfs("mv /data/missing.csv /data/new.csv")
+
+    assert "not found" in result.lower() or "404" in result
+
+
+def test_hdfs_stat_magic_permission_denied(magics_instance):
+    """%hdfs stat on a 403 path surfaces the error (via general handler)."""
+    fake_response = MagicMock()
+    fake_response.status_code = 403
+    http_error = requests.exceptions.HTTPError(response=fake_response)
+
+    with patch.object(magics_instance.stat_cmd, "execute", side_effect=http_error):
+        result = magics_instance.hdfs("stat /data/private")
+
+    # 403 is not handled by _handle_http_error (only 404 is) so it re-raises
+    # and the general except returns an Error traceback string
+    assert result is not None and ("Error" in result or "403" in result)
