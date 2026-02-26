@@ -19,6 +19,7 @@ from .commands import (
     CatCommand,
     ChmodCommand,
     ChownCommand,
+    DuCommand,
     GetCommand,
     ListCommand,
     MkdirCommand,
@@ -59,6 +60,8 @@ class WebHDFSMagics(Magics):
                           Options: -n <lines>, --format <type>, --raw
       - %hdfs chmod     : Change file/directory permissions (-R for recursive)
       - %hdfs chown     : Change owner and group (-R for recursive)
+      - %hdfs du        : Show disk usage (real directory sizes via GETCONTENTSUMMARY)
+                          Options: -s (summary only), -h (human-readable sizes)
     """
 
     # Configuration traits
@@ -102,6 +105,7 @@ class WebHDFSMagics(Magics):
         self.list_cmd = ListCommand(self.client)
         self.mkdir_cmd = MkdirCommand(self.client)
         self.rm_cmd = RmCommand(self.client)
+        self.du_cmd = DuCommand(self.client)
         self.cat_cmd = CatCommand(self.client)
         self.get_cmd = GetCommand(self.client)
         self.put_cmd = PutCommand(self.client)
@@ -242,6 +246,15 @@ class WebHDFSMagics(Magics):
                         return error_msg
                     raise
 
+            elif cmd == "du":
+                result = self._handle_du(args)
+                self.logger.log_operation_end(
+                    operation="hdfs du",
+                    success=True,
+                    path=args[-1] if args else None,
+                )
+                return result
+
             elif cmd == "mkdir":
                 path = args[0]
                 result = self.mkdir_cmd.execute(path)
@@ -323,6 +336,34 @@ class WebHDFSMagics(Magics):
             self.logger.log_error(operation=f"hdfs {cmd}", error=e, command=line, args=args)
             tb = traceback.format_exc()
             return f"Error: {str(e)}\nTraceback:\n{tb}"
+
+    def _handle_du(self, args: list) -> Union[pd.DataFrame, dict, str]:
+        """Handle du command with -s and -h option parsing."""
+        if not args:
+            return "Usage: %hdfs du [-s] [-h] <path>"
+
+        summary = False
+        human_readable = False
+        path = None
+
+        for arg in args:
+            if arg == "-s":
+                summary = True
+            elif arg == "-h":
+                human_readable = True
+            elif arg in ("-sh", "-hs"):
+                summary = True
+                human_readable = True
+            else:
+                path = arg
+
+        if not path:
+            return "Usage: %hdfs du [-s] [-h] <path>"
+
+        result = self.du_cmd.execute(path, summary=summary, human_readable=human_readable)
+        if isinstance(result, dict) and result.get("empty_dir"):
+            return result
+        return result
 
     def _handle_setconfig(self, args: list) -> str:
         """Handle setconfig command."""
@@ -504,6 +545,19 @@ class WebHDFSMagics(Magics):
                     <td>Create directory</td>
                 </tr>
                 <tr>
+                    <td><code>%hdfs du [options] &lt;path&gt;</code></td>
+                    <td><strong>Disk usage</strong> — real directory sizes
+                        (GETCONTENTSUMMARY)<br>
+                        Returns a DataFrame with size, space_consumed,
+                        file_count, dir_count<br>
+                        <span class="option">-s</span> :
+                        summary of path itself (no children iteration)<br>
+                        <span class="option">-h</span> :
+                        human-readable sizes (KB/MB/GB)<br>
+                        <span class="option">-sh</span> :
+                        combine both options</td>
+                </tr>
+                <tr>
                     <td><code>%hdfs rm &lt;path&gt; [-r]</code></td>
                     <td>Delete file/directory<br>
                         <span class="option">-r</span> : recursive deletion</td>
@@ -561,6 +615,9 @@ class WebHDFSMagics(Magics):
                 Upload files with 4 parallel threads</li>
             <li><code>%hdfs get -t 8 /hdfs/output/*.parquet ./results/</code> -
                 Download files with 8 parallel threads</li>
+            <li><code>%hdfs du /data/users</code> - Size of each user directory</li>
+            <li><code>%hdfs du -h /data/users</code> - Same, human-readable sizes</li>
+            <li><code>%hdfs du -sh /data/warehouse</code> - Total size of warehouse</li>
             <li><code>%hdfs chmod -R 755 /mydir</code> - Set permissions recursively</li>
         </ul>
         </div>

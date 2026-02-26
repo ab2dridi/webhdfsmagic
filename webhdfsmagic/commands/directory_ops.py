@@ -12,7 +12,7 @@ from typing import Union
 
 import pandas as pd
 
-from ..utils import format_file_entry
+from ..utils import format_file_entry, format_size
 from .base import BaseCommand
 
 
@@ -48,6 +48,90 @@ class ListCommand(BaseCommand):
         entries = [format_file_entry(f) for f in file_statuses]
 
         return pd.DataFrame(entries)
+
+
+class DuCommand(BaseCommand):
+    """Disk usage command — get real size of directories via GETCONTENTSUMMARY."""
+
+    def execute(
+        self,
+        path: str,
+        summary: bool = False,
+        human_readable: bool = False,
+    ) -> Union[pd.DataFrame, dict]:
+        """
+        Get disk usage for an HDFS path.
+
+        Without -s: lists all immediate children with their real sizes.
+        With -s   : returns the total size of the path itself.
+
+        Uses the GETCONTENTSUMMARY WebHDFS operation, which — unlike
+        LISTSTATUS — returns the actual recursive size of directories.
+
+        Args:
+            path: HDFS directory path
+            summary: If True, show only the total for the given path
+            human_readable: If True, format sizes as KB/MB/GB
+
+        Returns:
+            DataFrame with columns: name, type, size, space_consumed,
+            file_count, dir_count — or dict for empty directory
+
+        Example:
+            >>> cmd = DuCommand(client)
+            >>> df = cmd.execute("/data/users")
+            >>> print(df.columns)
+            Index(['name', 'type', 'size', 'space_consumed',
+                   'file_count', 'dir_count'], dtype='object')
+        """
+        if summary:
+            return self._summary_row(path, path, human_readable)
+
+        list_result = self.client.execute("GET", "LISTSTATUS", path)
+        file_statuses = list_result.get("FileStatuses", {}).get("FileStatus", [])
+
+        if not file_statuses:
+            return {"empty_dir": True, "path": path}
+
+        entries = []
+        for status in file_statuses:
+            name = status["pathSuffix"]
+            child_path = f"{path.rstrip('/')}/{name}"
+            cs_result = self.client.execute("GET", "GETCONTENTSUMMARY", child_path)
+            cs = cs_result["ContentSummary"]
+            entries.append(
+                self._build_row(
+                    name=name,
+                    entry_type="DIR" if status["type"] == "DIRECTORY" else "FILE",
+                    cs=cs,
+                    human_readable=human_readable,
+                )
+            )
+
+        return pd.DataFrame(entries)
+
+    def _summary_row(self, path: str, display_name: str, human_readable: bool) -> pd.DataFrame:
+        """Return a single-row DataFrame with the summary of path."""
+        cs_result = self.client.execute("GET", "GETCONTENTSUMMARY", path)
+        cs = cs_result["ContentSummary"]
+        return pd.DataFrame([self._build_row(display_name, "DIR", cs, human_readable)])
+
+    def _build_row(
+        self, name: str, entry_type: str, cs: dict, human_readable: bool
+    ) -> dict:
+        """Build a single row dict from a ContentSummary payload."""
+        length = cs["length"]
+        consumed = cs["spaceConsumed"]
+        return {
+            "name": name,
+            "type": entry_type,
+            "size": format_size(length, human_readable) if human_readable else length,
+            "space_consumed": (
+                format_size(consumed, human_readable) if human_readable else consumed
+            ),
+            "file_count": cs["fileCount"],
+            "dir_count": cs["directoryCount"],
+        }
 
 
 class MkdirCommand(BaseCommand):
