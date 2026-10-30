@@ -421,11 +421,14 @@ class TestCatFormatMethods:
 
     def test_format_csv_error_fallback(self, cat_command):
         """Test CSV formatting error fallback."""
-        content = b"\xff\xfe\x00\x00"
+        content = b"a,b\n1,2\n"
 
-        result = cat_command._format_csv(content, num_lines=-1, format_type="table")
+        # Force the parsing error: whether pandas rejects malformed bytes depends on its version
+        with patch("pandas.read_csv", side_effect=ValueError("bad CSV")):
+            result = cat_command._format_csv(content, num_lines=-1, format_type="table")
 
-        assert "[CSV parsing failed:" in result
+        assert "[CSV parsing failed: bad CSV]" in result
+        assert "a,b" in result
 
     def test_format_parquet_with_truncation(self, cat_command):
         """Test Parquet formatting with row limit."""

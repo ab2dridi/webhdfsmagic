@@ -1,7 +1,7 @@
 ![Version](https://img.shields.io/badge/version-0.0.7-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Tests](https://img.shields.io/badge/tests-300%20passed-success.svg)
+![Tests](https://img.shields.io/badge/tests-315%20passed-success.svg)
 ![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen.svg)
 ![Code style](https://img.shields.io/badge/code%20style-ruff-000000.svg)
 ![Status](https://img.shields.io/badge/status-stable-green.svg)
@@ -571,4 +571,3 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 ## 📬 Contact
 
 For questions or suggestions, open an issue on GitHub.
-
