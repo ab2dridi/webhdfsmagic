@@ -8,7 +8,7 @@ consistent interface and error handling.
 from abc import ABC, abstractmethod
 from typing import Any
 
-from ..client import WebHDFSClient
+from ..client import WebHDFSClient, build_webhdfs_url
 
 
 class BaseCommand(ABC):
@@ -22,6 +22,10 @@ class BaseCommand(ABC):
             client: WebHDFSClient instance
         """
         self.client = client
+
+    def _url(self, path: str) -> str:
+        """Build the WebHDFS URL for an HDFS path."""
+        return build_webhdfs_url(self.client.knox_url, self.client.webhdfs_api, path)
 
     @abstractmethod
     def execute(self, *args, **kwargs) -> Any:

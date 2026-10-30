@@ -70,8 +70,7 @@ class ConfigurationManager:
         """
         Load configuration from .sparkmagic/config.json.
 
-        Transforms Livy URL to WebHDFS URL by removing the last path segment
-        and appending '/webhdfs/v1'.
+        Transforms the Livy URL to the Knox gateway base URL.
         """
         try:
             with open(path) as f:
@@ -97,25 +96,33 @@ class ConfigurationManager:
 
     def _transform_sparkmagic_url(self, url: str) -> str:
         """
-        Transform Sparkmagic Livy URL to WebHDFS URL.
+        Transform Sparkmagic Livy URL to the Knox gateway base URL.
+
+        The Livy segment and everything after it are removed. The WebHDFS API
+        path is appended later from ``webhdfs_api``.
 
         Examples:
             https://host:port/gateway/default/livy/v1
-            -> https://host:port/gateway/default/webhdfs/v1
+            -> https://host:port/gateway/default
 
-            https://host:port/livy_for_spark3
-            -> https://host:port/webhdfs/v1
+            https://host:port/gateway/default/livy_for_spark3
+            -> https://host:port/gateway/default
         """
         parsed = urllib.parse.urlsplit(url)
         path_parts = parsed.path.rstrip("/").split("/")
 
-        if len(path_parts) > 1 and path_parts[-1]:
+        livy_index = next(
+            (i for i, part in enumerate(path_parts) if part.lower().startswith("livy")),
+            None,
+        )
+        if livy_index is not None:
+            base_path = "/".join(path_parts[:livy_index])
+        elif len(path_parts) > 1 and path_parts[-1]:
             base_path = "/".join(path_parts[:-1])
         else:
-            base_path = parsed.path
+            base_path = parsed.path.rstrip("/")
 
-        base_url = f"{parsed.scheme}://{parsed.netloc}{base_path}"
-        return base_url + "/webhdfs/v1"
+        return f"{parsed.scheme}://{parsed.netloc}{base_path}"
 
     def _validate_verify_ssl(self):
         """

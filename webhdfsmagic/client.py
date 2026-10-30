@@ -12,6 +12,11 @@ import requests
 from .logger import get_logger
 
 
+def build_webhdfs_url(knox_url: str, webhdfs_api: str, path: str) -> str:
+    """Build a WebHDFS URL without duplicate slashes at component boundaries."""
+    return f"{knox_url.rstrip('/')}/{webhdfs_api.strip('/')}/{path.lstrip('/')}"
+
+
 class WebHDFSClient:
     """HTTP client for WebHDFS operations through Knox gateway."""
 
@@ -48,7 +53,7 @@ class WebHDFSClient:
 
     def _build_url(self, path: str) -> str:
         """Build a WebHDFS URL without duplicate slashes at component boundaries."""
-        return f"{self.knox_url.rstrip('/')}/{self.webhdfs_api.strip('/')}/{path.lstrip('/')}"
+        return build_webhdfs_url(self.knox_url, self.webhdfs_api, path)
 
     @overload
     def execute(
@@ -158,8 +163,8 @@ class WebHDFSClient:
                 operation=f"{method} {operation}",
                 error=e,
                 url=url,
-                status_code=response.status_code if response else None,
-                response_text=response.text if response else None,
+                status_code=response.status_code if response is not None else None,
+                response_text=response.text if response is not None else None,
             )
             raise
         except Exception as e:

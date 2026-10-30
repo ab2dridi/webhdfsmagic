@@ -271,3 +271,20 @@ class TestClientExceptionHandling:
 
             with pytest.raises(ValueError):
                 client.execute("GET", "LISTSTATUS", "/test")
+
+
+@patch("requests.request")
+def test_execute_http_error_logs_status_code(mock_request, client):
+    """Test that HTTP errors log the status code even though the response is falsy."""
+    response = requests.Response()
+    response.status_code = 404
+    response._content = b'{"RemoteException": {"message": "File does not exist: /"}}'
+    mock_request.return_value = response
+    client.logger = MagicMock()
+
+    with pytest.raises(requests.HTTPError):
+        client.execute("GET", "LISTSTATUS", "/")
+
+    log_kwargs = client.logger.log_error.call_args.kwargs
+    assert log_kwargs["status_code"] == 404
+    assert "File does not exist" in log_kwargs["response_text"]

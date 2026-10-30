@@ -266,9 +266,8 @@ def test_fallback_to_sparkmagic_config():
         magics = WebHDFSMagics(shell)
 
         # Verify that sparkmagic config was used and transformed correctly
-        # URL transformation: removes last segment (/v1) and appends /webhdfs/v1
-        # So: .../gateway/cluster/livy/v1 -> .../gateway/cluster/livy + /webhdfs/v1
-        assert magics.knox_url == "https://sparkmagic-host:8443/gateway/cluster/livy/webhdfs/v1"
+        # URL transformation: removes the Livy endpoint, webhdfs_api is appended later
+        assert magics.knox_url == "https://sparkmagic-host:8443/gateway/cluster"
         assert magics.webhdfs_api == "/webhdfs/v1"
         assert magics.auth_user == "sparkuser"
         assert magics.auth_password == "sparkpass"
@@ -368,8 +367,8 @@ def test_sparkmagic_config_with_custom_livy_endpoint():
         magics = WebHDFSMagics(shell)
 
         # Verify that URL was correctly transformed
-        # Should remove /livy_for_spark3 and append /webhdfs/v1
-        assert magics.knox_url == "https://hostname:port/gateway/default/webhdfs/v1"
+        # Should remove /livy_for_spark3
+        assert magics.knox_url == "https://hostname:port/gateway/default"
         assert magics.webhdfs_api == "/webhdfs/v1"
         assert magics.auth_user == "user"
         assert magics.auth_password == "password"
@@ -412,17 +411,17 @@ def test_sparkmagic_config_variations():
         {
             "name": "livy/v1 endpoint",
             "url": "https://host1:8443/gateway/cluster/livy/v1",
-            "expected": "https://host1:8443/gateway/cluster/livy/webhdfs/v1",
+            "expected": "https://host1:8443/gateway/cluster",
         },
         {
             "name": "livy_for_spark3 endpoint",
             "url": "https://host2:8443/gateway/default/livy_for_spark3",
-            "expected": "https://host2:8443/gateway/default/webhdfs/v1",
+            "expected": "https://host2:8443/gateway/default",
         },
         {
             "name": "livy endpoint without version",
             "url": "https://host3:8443/gateway/production/livy",
-            "expected": "https://host3:8443/gateway/production/webhdfs/v1",
+            "expected": "https://host3:8443/gateway/production",
         },
     ]
 
@@ -645,8 +644,8 @@ def test_transform_url_without_final_segment():
     # Test normal case - removes last segment
     url1 = "https://knox:8443/gateway/default/livy/v1"
     result1 = config._transform_sparkmagic_url(url1)
-    # Should keep base path and add /webhdfs/v1
-    assert "gateway/default/livy/webhdfs/v1" in result1
+    # Should keep the gateway base path only
+    assert result1 == "https://knox:8443/gateway/default"
     print(f"✅ {url1} → {result1}")
 
     # Test edge case that triggers line 115 (else branch)
@@ -655,7 +654,7 @@ def test_transform_url_without_final_segment():
     # When path ends with / and becomes empty: line 115 (else)
     url2 = "https://knox:8443/"
     result2 = config._transform_sparkmagic_url(url2)
-    assert "/webhdfs/v1" in result2
+    assert result2 == "https://knox:8443"
     print(f"✅ {url2} → {result2}")
 
 

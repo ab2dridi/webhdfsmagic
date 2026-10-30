@@ -110,10 +110,7 @@ class CatCommand(BaseCommand):
         Returns:
             File size in bytes
         """
-        url = (
-            f"{self.client.knox_url}{self.client.webhdfs_api}"
-            f"{file_path}?op=GETFILESTATUS&user.name={self.client.auth_user}"
-        )
+        url = f"{self._url(file_path)}?op=GETFILESTATUS&user.name={self.client.auth_user}"
 
         response = requests.get(
             url,
@@ -140,7 +137,7 @@ class CatCommand(BaseCommand):
             File content as bytes
         """
         # Build URL with optional length parameter
-        url = f"{self.client.knox_url}{self.client.webhdfs_api}{file_path}?op=OPEN"
+        url = f"{self._url(file_path)}?op=OPEN"
 
         # Add length parameter to limit bytes read from HDFS
         if max_bytes is not None:
@@ -527,7 +524,7 @@ class GetCommand(BaseCommand):
     def _download_file(self, hdfs_path: str, local_path: str):
         """Download a single file via streaming."""
         response = requests.get(
-            f"{self.client.knox_url}{self.client.webhdfs_api}{hdfs_path}?op=OPEN",
+            f"{self._url(hdfs_path)}?op=OPEN",
             auth=(self.client.auth_user, self.client.auth_password),
             verify=self.client.verify_ssl,
             stream=True,
@@ -669,10 +666,10 @@ class PutCommand(BaseCommand):
         """Upload a single file to HDFS."""
         try:
             # Phase 1: Create file
-            init_url = f"{self.client.knox_url}{self.client.webhdfs_api}{hdfs_dest}"
+            init_url = self._url(hdfs_dest)
             if hdfs_dest.endswith("/") or hdfs_dest.endswith("."):
                 basename = os.path.basename(local_file)
-                init_url = f"{self.client.knox_url}{self.client.webhdfs_api}{hdfs_dest}{basename}"
+                init_url = self._url(f"{hdfs_dest}{basename}")
 
             init_response = requests.put(
                 init_url,

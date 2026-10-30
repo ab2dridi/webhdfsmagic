@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Normalize URL separators when building WebHDFS request URLs, including requests for the HDFS root.
+- Apply the same URL normalization to `cat`, `get` and `put`, which built their URLs directly and failed when `knox_url` or `webhdfs_api` ended with a slash.
+- Fix the WebHDFS URL derived from `~/.sparkmagic/config.json`: the Livy segment was kept and `/webhdfs/v1` was added twice, so every command returned 404 (e.g. `Directory not found: /`).
+- Log the HTTP status code and response body of failed requests (they were always logged as `None`).
 
 ## [0.0.6] - 2026-02-26
 
