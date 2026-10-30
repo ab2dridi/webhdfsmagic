@@ -46,6 +46,14 @@ class WebHDFSClient:
             f"webhdfs_api={webhdfs_api}, user={auth_user}, verify_ssl={verify_ssl}"
         )
 
+    def _build_url(self, path: str) -> str:
+        """Build a WebHDFS URL without duplicate slashes at component boundaries."""
+        return (
+            f"{self.knox_url.rstrip('/')}/"
+            f"{self.webhdfs_api.strip('/')}/"
+            f"{path.lstrip('/')}"
+        )
+
     def execute(
         self,
         method: str,
@@ -72,7 +80,7 @@ class WebHDFSClient:
         Raises:
             requests.HTTPError: On HTTP errors
         """
-        url = f"{self.knox_url}{self.webhdfs_api}{path}"
+        url = self._build_url(path)
         params["op"] = operation
 
         # Add user.name if not present and user is configured
@@ -154,7 +162,7 @@ class WebHDFSClient:
         Returns:
             Decoded JSON response
         """
-        url = f"{self.knox_url}{self.webhdfs_api}{path}"
+        url = self._build_url(path)
         params["op"] = operation
 
         if "user.name" not in params and self.auth_user:
@@ -174,7 +182,7 @@ class WebHDFSClient:
         self, operation: str, path: str, data: Optional[bytes] = None, **params
     ) -> dict[str, Any]:
         """Execute POST request."""
-        url = f"{self.knox_url}{self.webhdfs_api}{path}"
+        url = self._build_url(path)
         params["op"] = operation
 
         if "user.name" not in params and self.auth_user:

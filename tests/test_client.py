@@ -70,6 +70,22 @@ def test_execute_get_request(mock_request, client):
 
 
 @patch("requests.request")
+def test_execute_root_path_normalizes_url(mock_request, client):
+    """Test listing the HDFS root with trailing slashes in the configured URLs."""
+    mock_response = MagicMock()
+    mock_response.content = b""
+    mock_request.return_value = mock_response
+    client.knox_url = "http://test-knox:8443/gateway/default/"
+    client.webhdfs_api = "/webhdfs/v1/"
+
+    client.execute("GET", "LISTSTATUS", "/")
+
+    assert mock_request.call_args.kwargs["url"] == (
+        "http://test-knox:8443/gateway/default/webhdfs/v1/"
+    )
+
+
+@patch("requests.request")
 def test_execute_with_stream(mock_request, client):
     """Test execute with streaming response."""
     mock_response = MagicMock()
