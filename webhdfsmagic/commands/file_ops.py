@@ -14,7 +14,7 @@ import os
 import re
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional
+from typing import Any, Callable, Optional
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import pandas as pd
@@ -238,8 +238,14 @@ class CatCommand(BaseCommand):
             if format_type == "pandas":
                 return str(df)
 
-            # Format as table
-            table = tabulate(df, headers="keys", tablefmt="grid", showindex=False, maxcolwidths=50)
+            # Format as table (tabulate supports DataFrames, its stubs do not declare it)
+            table = tabulate(
+                df,  # type: ignore[arg-type]
+                headers="keys",
+                tablefmt="grid",
+                showindex=False,
+                maxcolwidths=50,
+            )
 
             # Add truncation notice if needed
             if truncated:
@@ -317,18 +323,18 @@ class CatCommand(BaseCommand):
 
         # Return delimiter with highest count
         if counts:
-            return max(counts, key=counts.get)
+            return max(counts, key=lambda delimiter: counts[delimiter])
 
         # Default to comma
         return ","
 
     def _handle_redirect(self, response: requests.Response) -> requests.Response:
         """Handle HTTP 307 redirect and fix Docker internal hostnames."""
-        redirect_url = response.headers.get("Location")
+        redirect_url = response.headers.get("Location", "")
         parsed = urlparse(redirect_url)
 
         # Fix Docker internal hostnames (12-char hex) -> localhost
-        hostname = parsed.hostname
+        hostname = parsed.hostname or ""
         if re.match(r"^[0-9a-f]{12}$", hostname):
             hostname = "localhost"
 
@@ -360,7 +366,11 @@ class GetCommand(BaseCommand):
     """Download files from HDFS to local filesystem."""
 
     def execute(
-        self, hdfs_source: str, local_dest: str, format_ls_func: callable, threads: int = 1
+        self,
+        hdfs_source: str,
+        local_dest: str,
+        format_ls_func: Callable[[str], Any],
+        threads: int = 1,
     ) -> str:
         """
         Download file(s) from HDFS.
@@ -390,7 +400,7 @@ class GetCommand(BaseCommand):
         hdfs_pattern: str,
         local_dest: str,
         local_dest_expanded: str,
-        format_ls_func: callable,
+        format_ls_func: Callable[[str], Any],
         threads: int = 1,
     ) -> str:
         """Download multiple files matching pattern, optionally in parallel."""
@@ -536,11 +546,11 @@ class GetCommand(BaseCommand):
 
     def _handle_redirect(self, response: requests.Response) -> requests.Response:
         """Handle HTTP 307 redirect and fix Docker internal hostnames."""
-        redirect_url = response.headers.get("Location")
+        redirect_url = response.headers.get("Location", "")
         parsed = urlparse(redirect_url)
 
         # Fix Docker internal hostnames
-        hostname = parsed.hostname
+        hostname = parsed.hostname or ""
         if re.match(r"^[0-9a-f]{12}$", hostname):
             hostname = "localhost"
 

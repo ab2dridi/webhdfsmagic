@@ -19,7 +19,7 @@ class WebHDFSLogger:
     """
 
     _instance: Optional["WebHDFSLogger"] = None
-    _logger: Optional[logging.Logger] = None
+    _logger: logging.Logger
 
     def __new__(cls):
         """Singleton pattern to ensure one logger instance."""

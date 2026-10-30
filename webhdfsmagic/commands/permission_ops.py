@@ -6,7 +6,7 @@ This module implements commands for managing permissions and ownership:
 - chown: Change owner and group
 """
 
-from typing import Optional
+from typing import Any, Callable, Optional
 
 from .base import BaseCommand
 
@@ -15,7 +15,11 @@ class ChmodCommand(BaseCommand):
     """Change file/directory permissions."""
 
     def execute(
-        self, path: str, permission: str, recursive: bool = False, format_ls_func: callable = None
+        self,
+        path: str,
+        permission: str,
+        recursive: bool = False,
+        format_ls_func: Optional[Callable[[str], Any]] = None,
     ) -> str:
         """
         Change permissions on HDFS file or directory.
@@ -47,7 +51,9 @@ class ChmodCommand(BaseCommand):
         self.client.execute("PUT", "SETPERMISSION", path, permission=permission)
         return f"Permission {permission} set for {path}"
 
-    def _set_permission_recursive(self, path: str, permission: str, format_ls_func: callable):
+    def _set_permission_recursive(
+        self, path: str, permission: str, format_ls_func: Callable[[str], Any]
+    ):
         """Recursively apply permission changes."""
         self._set_permission(path, permission)
         try:
@@ -76,7 +82,7 @@ class ChownCommand(BaseCommand):
         owner: str,
         group: Optional[str] = None,
         recursive: bool = False,
-        format_ls_func: callable = None,
+        format_ls_func: Optional[Callable[[str], Any]] = None,
     ) -> str:
         """
         Change owner and group on HDFS file or directory.
@@ -110,7 +116,7 @@ class ChownCommand(BaseCommand):
         return f"Owner {owner}:{group} set for {path}"
 
     def _recursive_set_owner(
-        self, path: str, owner: str, group: Optional[str], format_ls_func: callable
+        self, path: str, owner: str, group: Optional[str], format_ls_func: Callable[[str], Any]
     ):
         """Recursively apply owner and group changes."""
         self._set_owner(path, owner, group)

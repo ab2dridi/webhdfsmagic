@@ -5,7 +5,7 @@ This module provides the HTTP client for interacting with the WebHDFS REST API
 through Apache Knox gateway.
 """
 
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union, overload
 
 import requests
 
@@ -48,11 +48,40 @@ class WebHDFSClient:
 
     def _build_url(self, path: str) -> str:
         """Build a WebHDFS URL without duplicate slashes at component boundaries."""
-        return (
-            f"{self.knox_url.rstrip('/')}/"
-            f"{self.webhdfs_api.strip('/')}/"
-            f"{path.lstrip('/')}"
-        )
+        return f"{self.knox_url.rstrip('/')}/{self.webhdfs_api.strip('/')}/{path.lstrip('/')}"
+
+    @overload
+    def execute(
+        self,
+        method: str,
+        operation: str,
+        path: str,
+        stream: Literal[False] = ...,
+        allow_redirects: bool = ...,
+        **params,
+    ) -> dict[str, Any]: ...
+
+    @overload
+    def execute(
+        self,
+        method: str,
+        operation: str,
+        path: str,
+        stream: Literal[True],
+        allow_redirects: bool = ...,
+        **params,
+    ) -> requests.Response: ...
+
+    @overload
+    def execute(
+        self,
+        method: str,
+        operation: str,
+        path: str,
+        stream: bool = ...,
+        allow_redirects: bool = ...,
+        **params,
+    ) -> Union[requests.Response, dict[str, Any]]: ...
 
     def execute(
         self,

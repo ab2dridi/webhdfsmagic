@@ -75,11 +75,12 @@ def format_size(size_bytes: int, human_readable: bool = False) -> str:
     if not human_readable:
         return str(size_bytes)
 
+    size = float(size_bytes)
     for unit in ["B", "KB", "MB", "GB", "TB"]:
-        if size_bytes < 1024.0:
-            return f"{size_bytes:.1f} {unit}"
-        size_bytes /= 1024.0
-    return f"{size_bytes:.1f} PB"
+        if size < 1024.0:
+            return f"{size:.1f} {unit}"
+        size /= 1024.0
+    return f"{size:.1f} PB"
 
 
 def format_timestamp(timestamp_ms: int) -> datetime:

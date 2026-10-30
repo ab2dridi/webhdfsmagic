@@ -12,7 +12,7 @@ This module implements commands for directory operations:
 
 import fnmatch
 import os
-from typing import Union
+from typing import Any, Callable, Optional, Union
 
 import pandas as pd
 import requests
@@ -247,7 +247,10 @@ class RmCommand(BaseCommand):
     """Remove files/directories from HDFS."""
 
     def execute(
-        self, pattern: str, recursive: bool = False, format_ls_func: callable = None
+        self,
+        pattern: str,
+        recursive: bool = False,
+        format_ls_func: Optional[Callable[[str], Any]] = None,
     ) -> str:
         """
         Remove file(s) or directory from HDFS.

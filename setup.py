@@ -20,11 +20,13 @@ def get_version():
 
 class PostDevelopCommand(develop):
     """Post-installation for development mode."""
+
     def run(self):
         develop.run(self)
         # Run autoload installation
         try:
             from webhdfsmagic.install import install_autoload
+
             if install_autoload():
                 print("\n✓ webhdfsmagic autoload configured successfully!")
                 print("  The extension will load automatically in Jupyter notebooks.\n")
@@ -38,11 +40,13 @@ class PostDevelopCommand(develop):
 
 class PostInstallCommand(install):
     """Post-installation for installation mode."""
+
     def run(self):
         install.run(self)
         # Run autoload installation
         try:
             from webhdfsmagic.install import install_autoload
+
             if install_autoload():
                 print("\n✓ webhdfsmagic autoload configured successfully!")
                 print("  The extension will load automatically in Jupyter notebooks.\n")
@@ -57,8 +61,9 @@ class PostInstallCommand(install):
 # Use pyproject.toml for configuration
 setup(
     version=get_version(),
-    cmdclass={
-        'develop': PostDevelopCommand,
-        'install': PostInstallCommand,
+    # setuptools stubs do not accept setuptools command subclasses here
+    cmdclass={  # type: ignore[arg-type]
+        "develop": PostDevelopCommand,
+        "install": PostInstallCommand,
     },
 )

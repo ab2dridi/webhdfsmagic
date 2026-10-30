@@ -191,7 +191,7 @@ class WebHDFSMagics(Magics):
         return threads, remaining_args
 
     @line_magic
-    def hdfs(self, line: str) -> Union[pd.DataFrame, str, HTML]:
+    def hdfs(self, line: str) -> Union[pd.DataFrame, str, HTML, None]:
         """
         Main entry point for %hdfs magic commands.
 
@@ -326,7 +326,7 @@ class WebHDFSMagics(Magics):
                 )
                 if isinstance(result, str) and result.count("\n") > 1:
                     print(result)
-                    return
+                    return None
                 return result
 
             elif cmd == "get":
@@ -347,7 +347,7 @@ class WebHDFSMagics(Magics):
                 )
                 if isinstance(result, str) and result.count("\n") > 1:
                     print(result)
-                    return
+                    return None
                 return result
 
             elif cmd == "cat":
@@ -426,7 +426,7 @@ class WebHDFSMagics(Magics):
         except json.JSONDecodeError as e:
             return f"Error parsing JSON: {str(e)}"
 
-    def _handle_cat(self, args: list) -> str:
+    def _handle_cat(self, args: list) -> Optional[str]:
         """Handle cat command with argument parsing."""
         if not args:
             return "Usage: %hdfs cat <file> [-n <lines>] [--format <type>] [--raw]"
@@ -476,8 +476,8 @@ class WebHDFSMagics(Magics):
         # Otherwise print it for nice display in notebooks
         if result.startswith("Error:"):
             return result
-        else:
-            print(result)
+        print(result)
+        return None
 
     def _handle_chmod(self, args: list) -> str:
         """Handle chmod command."""
@@ -663,7 +663,7 @@ class WebHDFSMagics(Magics):
             <li><code>%hdfs cat data.parquet --format polars</code> -
                 Display with schema and types</li>
             <li><code>%hdfs put *.csv /data/</code> - Upload all CSV files</li>
-            <li><code>%hdfs put -t 4 ./data/*.csv /hdfs/input/</code> - 
+            <li><code>%hdfs put -t 4 ./data/*.csv /hdfs/input/</code> -
                 Upload files with 4 parallel threads</li>
             <li><code>%hdfs get -t 8 /hdfs/output/*.parquet ./results/</code> -
                 Download files with 8 parallel threads</li>
